@@ -4575,6 +4575,7 @@ const App: FC = () => {
         {/* This is the new routing logic */}
         <PageWrapper>
           <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/appointments" element={<AppointmentsPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
@@ -4599,14 +4600,10 @@ const App: FC = () => {
 // ============================================================
 export default function Root() {
   return (
-    <BrowserRouter>
-      {" "}
-      {/* <-- ADD THIS WRAPPER */}
-      <AuthProvider>
-        <AppProvider>
-          <App />
-        </AppProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <AuthProvider>
+      <AppProvider>
+        <App />
+      </AppProvider>
+    </AuthProvider>
   );
 }

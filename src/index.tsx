@@ -13,12 +13,11 @@ import "./index.css";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     {/* 3. Wrap your ENTIRE app */}
-    <BrowserRouter>
-      <AuthProvider>
-        <AppProvider>
-          <App />
-        </AppProvider>
-      </AuthProvider>
-    </BrowserRouter>
+
+    <AuthProvider>
+      <AppProvider>
+        <App />
+      </AppProvider>
+    </AuthProvider>
   </React.StrictMode>
 );
