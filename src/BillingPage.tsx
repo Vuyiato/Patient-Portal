@@ -7,12 +7,12 @@ import {
   IconBuilding2,
   IconBanknote,
   IconDownload,
-  IconCheckCircle, // Renamed from IconCheckCircle
-  IconX, // Renamed from IconX
+  IconCheckCircle,
+  IconX,
   IconClock,
   IconAlertCircle,
   IconLoader2,
-} from "./patientPortal"; // Import from your main portal file
+} from "./components/Icons"; // Import from your main portal file
 import {
   getPatientInvoices,
   getPendingInvoices,

@@ -1,20 +1,19 @@
 import React from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
-
-// 1. Import your auth hook and layout components
 import {
   useAuth,
-  Sidebar,
-  Header,
-  PageWrapper,
-  // --- ADD THESE IMPORTS ---
   Dashboard,
-  AppointmentsPage,
-  DocumentsPage,
   ChatPage,
   ProfilePage,
   SettingsPage,
 } from "./patientPortal";
+import {
+  Sidebar,
+  Header,
+  PageWrapper,
+  AppointmentsPage,
+  DocumentsPage,
+} from "./components/Icons";
 
 // 2. Import your page components
 import BillingPage from "./BillingPage";
