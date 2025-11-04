@@ -1,70 +1,58 @@
 import React from "react";
 import { Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
-import {
-  Dashboard,
-  ChatPage,
-  ProfilePage,
-  SettingsPage,
-} from "./patientPortal";
-import {
-  Sidebar,
-  Header,
-  PageWrapper,
-  AppointmentsPage,
-  DocumentsPage,
-} from "./components/Icons";
 
 import BillingPage from "./BillingPage";
 import LoginPage from "./pages/LoginPage";
+import SidebarLayout from "./components/Sidebar";
+import DashboardPage from "./pages/Dashboard";
+import ProfilePage from "./pages/Profile";
+import SettingsPage from "./pages/Settings";
+import AppointmentsPage from "./pages/Appointments";
+import DocumentsPage from "./pages/Documents";
+import ChatPage from "./pages/Chat";
 
 const AppLayout = () => {
-  const { currentUser } = useAuth();
-  if (!currentUser) return null; // Should not happen if routes are correct
+  const { user } = useAuth();
+  if (!user) return null; // Should not happen if routes are correct
 
   return (
-    <div className="flex h-screen bg-brand-light">
-      <Sidebar />
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <Header />
-        <PageWrapper>
-          <Routes>
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="appointments" element={<AppointmentsPage />} />
-            <Route path="documents" element={<DocumentsPage />} />
-            <Route path="chat" element={<ChatPage />} />
-            <Route
-              path="billing"
-              element={<BillingPage patientId={currentUser.uid} />}
-            />
-            <Route
-              path="profile"
-              element={<ProfilePage patientId={currentUser.uid} />}
-            />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </PageWrapper>
-      </div>
-    </div>
+    <SidebarLayout>
+      <Routes>
+        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="appointments" element={<AppointmentsPage />} />
+        <Route path="documents" element={<DocumentsPage />} />
+        <Route path="chat" element={<ChatPage />} />
+        <Route path="billing" element={<BillingPage patientId={user.uid} />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </SidebarLayout>
   );
 };
 
 const ProtectedRoute: React.FC = () => {
-  const { currentUser } = useAuth();
-  return currentUser ? <AppLayout /> : <Navigate to="/login" replace />;
+  const { user } = useAuth();
+  return user ? <AppLayout /> : <Navigate to="/login" replace />;
 };
 
 const PublicRoute: React.FC = () => {
-  const { currentUser } = useAuth();
-  return !currentUser ? <Outlet /> : <Navigate to="/dashboard" replace />;
+  const { user } = useAuth();
+  return !user ? <Outlet /> : <Navigate to="/dashboard" replace />;
 };
 
 function App() {
   const { loading } = useAuth();
 
   if (loading) {
-    return <div>Loading user data...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+        <div className="text-xl font-semibold animate-pulse">
+          Loading Patient Portal...
+        </div>
+      </div>
+    );
   }
 
   return (

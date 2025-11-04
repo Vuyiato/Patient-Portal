@@ -1,44 +1,83 @@
 import React, { ReactNode, FC } from "react";
 
-// --- BUTTON ---
-type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+const Button: FC<{
+  children: ReactNode;
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
-  children: ReactNode;
-};
-
-const Button: FC<ButtonProps> = ({
+  className?: string;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  disabled?: boolean;
+  type?: "button" | "submit" | "reset";
+}> = ({
+  children,
   variant = "primary",
   size = "md",
-  children,
-  className,
-  ...props
+  className = "",
+  onClick,
+  disabled,
+  type = "button",
 }) => {
-  const baseStyles =
-    "font-semibold rounded-lg transition-all duration-300 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5 active:translate-y-0";
+  const baseClasses =
+    "relative overflow-hidden font-medium rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95";
 
-  const variantStyles = {
+  const variantClasses = {
     primary:
-      "bg-brand-teal text-white hover:bg-brand-dark focus:ring-brand-teal",
+      "bg-brand-teal text-white hover:bg-brand-dark shadow-lg hover:shadow-xl hover:shadow-brand-teal/30",
     secondary:
-      "bg-gray-200 text-brand-dark hover:bg-gray-300 focus:ring-gray-400",
+      "bg-brand-yellow text-brand-dark hover:bg-yellow-400 shadow-lg hover:shadow-xl hover:shadow-brand-yellow/30",
     ghost:
-      "bg-transparent text-brand-dark hover:bg-gray-100 focus:ring-gray-300",
-    danger: "bg-red-500 text-white hover:bg-red-600 focus:ring-red-500",
+      "bg-transparent text-brand-dark hover:bg-brand-teal/10 hover:text-brand-teal",
+    danger:
+      "bg-red-600 text-white hover:bg-red-700 shadow-lg hover:shadow-xl hover:shadow-red-600/30",
   };
 
-  const sizeStyles = {
-    sm: "px-3 py-1.5 text-sm",
-    md: "px-5 py-2.5 text-base",
+  const sizeClasses = {
+    sm: "px-4 py-2 text-sm",
+    md: "px-6 py-3 text-base",
     lg: "px-8 py-4 text-lg",
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Ripple effect
+    const button = e.currentTarget;
+    const ripple = document.createElement("span");
+    const rect = button.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top - size / 2;
+
+    ripple.style.width = ripple.style.height = `${size}px`;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    ripple.classList.add(
+      "absolute",
+      "bg-white/30",
+      "rounded-full",
+      "pointer-events-none",
+      "animate-ping"
+    );
+
+    button.appendChild(ripple);
+
+    setTimeout(() => {
+      ripple.remove();
+    }, 600);
+
+    if (onClick) {
+      onClick(e);
+    }
   };
 
   return (
     <button
-      className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
-      {...props}
+      type={type}
+      disabled={disabled}
+      onClick={handleClick}
+      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
     >
-      {children}
+      <span className="relative z-10 flex items-center justify-center gap-2">
+        {children}
+      </span>
     </button>
   );
 };
