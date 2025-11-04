@@ -93,7 +93,7 @@ interface BillingPageProps {
 }
 
 const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
-  const { currentUser } = useAuth(); // Using useAuth hook
+  const { user } = useAuth(); // Using useAuth hook
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [pendingInvoices, setPendingInvoices] = useState<Invoice[]>([]);
@@ -133,7 +133,7 @@ const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
   }, [patientId]);
 
   const loadInvoices = async (useMockData = false) => {
-    if (!currentUser) {
+    if (!user) {
       // setError("You must be logged in to view billing information.");
       setLoading(false);
       return;
@@ -143,7 +143,7 @@ const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
     // setError(null);
 
     try {
-      const patientId = currentUser.uid;
+      const patientId = user.uid;
       if (useMockData) {
         const mockData = generateMockInvoices(patientId);
         const all = mockData;
