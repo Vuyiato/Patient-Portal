@@ -17,7 +17,7 @@ import {
 } from "./patientPortal";
 
 // 2. Import your page components
-import { BillingPage } from "./BillingPage";
+import BillingPage from "./BillingPage";
 
 function App() {
   // 3. Get the real user and loading state

@@ -546,7 +546,30 @@ export interface Invoice {
   status: "Paid" | "Pending" | "Overdue";
   service?: string;
   dueDate?: string;
+  items?: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
 }
+
+/**
+ * Get a single invoice
+ */
+export const getInvoice = async (
+  invoiceId: string
+): Promise<Invoice | null> => {
+  try {
+    const docSnap = await getDoc(doc(db, "invoices", invoiceId));
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as Invoice;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching invoice:", error);
+    throw error;
+  }
+};
 
 /**
  * Get invoices for a patient

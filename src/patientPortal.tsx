@@ -223,7 +223,7 @@ import {
   type Patient,
 } from "./services/database-service";
 import { validatePassword, validatePasswordMatch } from "../auth-service";
-import { BillingPage } from "./BillingPage";
+import BillingPage from "./BillingPage";
 
 // ==================== END FIREBASE IMPORTS ====================
 
@@ -311,7 +311,9 @@ const useDocuments = () => {
         name: doc.name,
         date: doc.date,
         type: doc.type || "PDF",
-        size: "0 KB", // We'll fix this in the next section
+        size: doc.size ? `${(Number(doc.size) / 1024).toFixed(2)} KB` : "0 KB",
+        fileUrl: doc.fileUrl,
+        category: doc.category,
       }));
       setDocuments(transformed as any);
       setError(null);
@@ -1773,9 +1775,9 @@ const LoginPage: FC = () => {
       {/* Animated background elements */}
       <AnimatedParticles />
 
-      <div className="absolute top-20 left-20 w-64 h-64 bg-brand-teal/10 rounded-full blur-3xl animate-float" />
+      <div className="absolute top-20 left-20 w-64 h-64 bg-brand-teal/20 rounded-full blur-3xl animate-float" />
       <div
-        className="absolute bottom-20 right-20 w-96 h-96 bg-brand-yellow/20 rounded-full blur-3xl animate-float"
+        className="absolute bottom-20 right-20 w-96 h-96 bg-brand-yellow/30 rounded-full blur-3xl animate-float"
         style={{ animationDelay: "1s" }}
       />
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-brand-teal/5 to-brand-yellow/5 rounded-full blur-3xl animate-pulse-glow" />
@@ -2167,7 +2169,7 @@ const StatCard: FC<{
 
       <div className="relative z-10 flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm text-gray-600 mb-2 flex items-center gap-2">
+          <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
             {label}
             <span className="w-2 h-2 bg-brand-teal rounded-full animate-pulse" />
           </p>
@@ -2194,7 +2196,7 @@ const StatCard: FC<{
             </div>
           )}
         </div>
-        <div className="p-4 bg-gradient-to-br from-brand-teal/10 to-brand-yellow/10 rounded-xl group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-lg">
+        <div className="p-4 bg-gradient-to-br from-brand-teal/10 to-brand-yellow/10 rounded-lg group-hover:scale-110 transition-transform duration-300 shadow-lg">
           {React.cloneElement(
             icon as React.ReactElement<{ className?: string }>,
             {
@@ -2276,7 +2278,9 @@ const DashboardMetricCard: FC<{
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-sm text-gray-600 mb-1">{label}</p>
-          <p className="text-3xl font-bold text-brand-dark mb-2">{value}</p>
+          <p className="text-3xl font-bold text-brand-dark mb-2 group-hover:text-brand-teal transition-colors">
+            {value}
+          </p>
           {trend && (
             <p className="text-sm text-green-600 flex items-center gap-1">
               <IconArrowUpRight className="w-4 h-4 animate-bounce-subtle" />
@@ -2937,17 +2941,15 @@ const CalendarView: FC<{
 export const AppointmentsPage: FC = () => {
   const { user } = useAuth();
   const { showToast } = useAppContext();
+  const { appointments, loading, error, refetch } = useAppointments();
 
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "upcoming" | "completed" | "cancelled"
+  >("all");
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [bookingData, setBookingData] = useState({
-    type: "",
-    date: "",
-    time: "",
-    notes: "",
-  });
   const [isBooking, setIsBooking] = useState(false);
 
-  // Add this function inside the AppointmentsPage component
   const handleBooking = async (data: any) => {
     if (!user) {
       showToast("Please log in to book an appointment", "error");
@@ -2958,19 +2960,17 @@ export const AppointmentsPage: FC = () => {
     try {
       await bookAppointment({
         patientId: user.uid,
-        patientName: user.displayName,
+        patientName: user.displayName || "Anonymous",
         type: data.type,
         date: data.date,
         time: data.time,
         notes: data.notes || "",
         status: "Pending",
-        doctorName: "Dr. Jabu Nkehli", // You can make this dynamic if needed
+        doctorName: "Dr. Jabu Nkehli",
       });
 
       showToast("Appointment booked successfully! 🎉", "success");
       setShowBookingModal(false);
-
-      // Refresh appointments list
       if (refetch) {
         refetch();
       }
@@ -2982,7 +2982,6 @@ export const AppointmentsPage: FC = () => {
     }
   };
 
-  // Add this handler function
   const handleDateClick = (date: string) => {
     showToast(
       `Viewing appointments for ${new Date(
@@ -2992,22 +2991,15 @@ export const AppointmentsPage: FC = () => {
     );
   };
 
-  // Use Firebase data
-  const { appointments, loading, error, refetch } = useAppointments();
-
-  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
-  const [filterStatus, setFilterStatus] = useState<
-    "all" | "upcoming" | "completed" | "cancelled"
-  >("all");
-
   const staggerItems = useStaggerAnimation(appointments.length, 100);
 
   const filteredAppointments = appointments.filter((apt) => {
     if (filterStatus === "all") return true;
+    if (filterStatus === "upcoming")
+      return apt.status === "Pending" || apt.status === "Confirmed";
     return apt.status.toLowerCase() === filterStatus;
   });
 
-  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -3017,12 +3009,11 @@ export const AppointmentsPage: FC = () => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="text-center py-12">
         <p className="text-red-600 mb-4">Error: {error}</p>
-        <Button onClick={refetch}>Retry</Button>
+        <Button onClick={() => refetch && refetch()}>Retry</Button>
       </div>
     );
   }
@@ -3070,7 +3061,11 @@ export const AppointmentsPage: FC = () => {
           },
           {
             label: "This Month",
-            count: 3,
+            count: appointments.filter(
+              (a) =>
+                new Date(a.date).getMonth() === new Date().getMonth() &&
+                new Date(a.date).getFullYear() === new Date().getFullYear()
+            ).length,
             color: "from-orange-500 to-orange-600",
             icon: <IconCalendar />,
           },
@@ -3086,7 +3081,7 @@ export const AppointmentsPage: FC = () => {
             <div className="relative flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
-                <p className="text-3xl font-bold text-brand-dark group-hover:text-brand-teal transition-colors">
+                <p className="text-3xl font-bold text-brand-dark mb-2 group-hover:text-brand-teal transition-colors">
                   {stat.count}
                 </p>
               </div>
@@ -3104,66 +3099,32 @@ export const AppointmentsPage: FC = () => {
           </div>
         ))}
       </div>
-
-      {/* Filters and View Toggle */}
-      <Card className="animate-slide-up" style={{ animationDelay: "200ms" }}>
+      {/* Filter and View Controls */}
+      <Card className="animate-slide-up" style={{ animationDelay: "100ms" }}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          {/* Filter Buttons */}
-          <div className="flex flex-wrap gap-2">
-            {[
-              {
-                key: "all",
-                label: "All Appointments",
-                count: appointments.length,
-              },
-              {
-                key: "upcoming",
-                label: "Upcoming",
-                count: appointments.filter(
-                  (a) => a.status === "Pending" || a.status === "Confirmed"
-                ).length,
-              },
-              {
-                key: "completed",
-                label: "Completed",
-                count: appointments.filter((a) => a.status === "Completed")
-                  .length,
-              },
-              {
-                key: "cancelled",
-                label: "Cancelled",
-                count: appointments.filter((a) => a.status === "Cancelled")
-                  .length,
-              },
-            ].map((filter) => (
-              <button
-                key={filter.key}
-                onClick={() =>
-                  setFilterStatus(filter.key as typeof filterStatus)
-                }
-                className={`
-                  px-4 py-2 rounded-lg font-medium transition-all duration-300 flex items-center gap-2
-                  ${
-                    filterStatus === filter.key
-                      ? "bg-brand-teal text-white shadow-lg scale-105"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105"
-                  }
-                `}
-              >
-                {filter.label}
-                <span
+          {/* Filters */}
+          <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+            {(["all", "upcoming", "completed", "cancelled"] as const).map(
+              (status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status)}
                   className={`
-                  px-2 py-0.5 rounded-full text-xs font-bold
-                  ${filterStatus === filter.key ? "bg-white/20" : "bg-gray-200"}
-                `}
+                    px-4 py-2 rounded-lg font-medium transition-all duration-300 capitalize
+                    ${
+                      filterStatus === status
+                        ? "bg-white shadow-md text-brand-teal"
+                        : "text-gray-600 hover:text-brand-teal"
+                    }
+                  `}
                 >
-                  {filter.count}
-                </span>
-              </button>
-            ))}
+                  {status}
+                </button>
+              )
+            )}
           </div>
 
-          {/* View Toggle */}
+          {/* View Mode */}
           <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => setViewMode("list")}

@@ -16,20 +16,85 @@ import {
 import {
   getPatientInvoices,
   getPendingInvoices,
-  getInvoice,
+  Invoice,
+  PaymentResult,
   processCardPayment,
   processEFTPayment,
   processCashPayment,
   formatCurrency,
-  type Invoice,
-  type PaymentResult,
 } from "./billing-service";
+import { useAuth } from "./contexts/AuthContext";
+
+// Mock Data Generator
+const generateMockInvoices = (patientId: string): Invoice[] => {
+  const mockInvoices: Invoice[] = [];
+  const statuses: Array<"pending" | "paid" | "overdue"> = [
+    "paid",
+    "pending",
+    "paid",
+    "overdue",
+  ];
+  const services = [
+    {
+      serviceId: "consultation",
+      serviceName: "Standard Consultation",
+      price: 999,
+      quantity: 1,
+      total: 999,
+    },
+    {
+      serviceId: "laser_treatment",
+      serviceName: "Laser Treatment",
+      price: 1500,
+      quantity: 1,
+      total: 1500,
+    },
+    {
+      serviceId: "acne_treatment",
+      serviceName: "Acne Treatment",
+      price: 650,
+      quantity: 1,
+      total: 650,
+    },
+    {
+      serviceId: "mole_removal",
+      serviceName: "Mole Removal",
+      price: 800,
+      quantity: 1,
+      total: 800,
+    },
+  ];
+
+  for (let i = 0; i < 4; i++) {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    const dueDate = new Date(date);
+    dueDate.setDate(dueDate.getDate() + 30);
+
+    mockInvoices.push({
+      id: `INV-20240${7 - i}-00${i + 1}`,
+      patientId: patientId,
+      patientName: "Mock Patient",
+      amount: services[i].total,
+      status: statuses[i],
+      date: date.toISOString().split("T")[0],
+      dueDate: dueDate.toISOString().split("T")[0],
+      services: [services[i]],
+      description: services[i].serviceName,
+      createdAt: date.toISOString(),
+      updatedAt: date.toISOString(),
+    });
+  }
+  return mockInvoices;
+};
 
 interface BillingPageProps {
   patientId: string;
 }
 
-export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
+const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
+  const { currentUser } = useAuth(); // Using useAuth hook
+
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [pendingInvoices, setPendingInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,17 +132,37 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
     loadInvoices();
   }, [patientId]);
 
-  const loadInvoices = async () => {
+  const loadInvoices = async (useMockData = false) => {
+    if (!currentUser) {
+      // setError("You must be logged in to view billing information.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    // setError(null);
+
     try {
-      const [allInvoices, pending] = await Promise.all([
-        getPatientInvoices(patientId),
-        getPendingInvoices(patientId),
-      ]);
-      setInvoices(allInvoices);
-      setPendingInvoices(pending);
-    } catch (error) {
-      console.error("Error loading invoices:", error);
+      const patientId = currentUser.uid;
+      if (useMockData) {
+        const mockData = generateMockInvoices(patientId);
+        const all = mockData;
+        const pending = mockData.filter(
+          (inv) => inv.status === "pending" || inv.status === "overdue"
+        );
+        setInvoices(all);
+        setPendingInvoices(pending);
+      } else {
+        const [all, pending] = await Promise.all([
+          getPatientInvoices(patientId),
+          getPendingInvoices(patientId),
+        ]);
+        setInvoices(all);
+        setPendingInvoices(pending);
+      }
+    } catch (err) {
+      console.error("Error loading invoices:", err);
+      // setError("Failed to load billing information. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -197,6 +282,14 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
     }
   };
 
+  const totalOutstanding = pendingInvoices.reduce(
+    (acc, inv) => acc + inv.amount,
+    0
+  );
+  const nextPaymentDueDate =
+    pendingInvoices.length > 0 ? pendingInvoices[0].dueDate : "N/A";
+  const paymentHistory = invoices.filter((inv) => inv.status === "paid");
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -206,17 +299,22 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-[#3A565B]">
-          Billing & Payments
-        </h1>
-        <p className="text-gray-600 mt-2">Manage your invoices and payments</p>
-      </div>
+    <div className="container mx-auto p-4 md:p-8 bg-gray-50">
+      <header className="mb-8">
+        <h1 className="text-4xl font-bold text-gray-800">Billing & Payments</h1>
+        <p className="text-gray-600 mt-2">
+          View your invoices, manage payments, and see your transaction history.
+        </p>
+        <button
+          onClick={() => loadInvoices(true)}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Load Mock Data
+        </button>
+      </header>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Billing Summary */}
+      <section className="grid md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
@@ -264,7 +362,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Pending Invoices */}
       {pendingInvoices.length > 0 && (
