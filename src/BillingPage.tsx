@@ -3,16 +3,16 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  CreditCard,
-  Building2,
-  Banknote,
-  Download,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  AlertCircle,
-  Loader2,
-} from "lucide-react";
+  IconCreditCard,
+  IconBuilding2,
+  IconBanknote,
+  IconDownload,
+  IconCheckCircle, // Renamed from IconCheckCircle
+  IconX, // Renamed from IconX
+  IconClock,
+  IconAlertCircle,
+  IconLoader2,
+} from "./patientPortal"; // Import from your main portal file
 import {
   getPatientInvoices,
   getPendingInvoices,
@@ -185,22 +185,22 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
   const getStatusIcon = (status: Invoice["status"]) => {
     switch (status) {
       case "paid":
-        return <CheckCircle2 className="w-4 h-4" />;
+        return <IconCheckCircle className="w-4 h-4" />;
       case "pending":
-        return <Clock className="w-4 h-4" />;
+        return <IconClock className="w-4 h-4" />;
       case "overdue":
-        return <AlertCircle className="w-4 h-4" />;
+        return <IconAlertCircle className="w-4 h-4" />;
       case "cancelled":
-        return <XCircle className="w-4 h-4" />;
+        return <IconX className="w-4 h-4" />;
       default:
-        return <Clock className="w-4 h-4" />;
+        return <IconClock className="w-4 h-4" />;
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-[#4E747B]" />
+        <IconLoader2 className="w-8 h-8 animate-spin text-[#4E747B]" />
       </div>
     );
   }
@@ -228,7 +228,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
               </p>
             </div>
             <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
-              <AlertCircle className="w-6 h-6 text-red-600" />
+              <IconAlertCircle className="w-6 h-6 text-red-600" />
             </div>
           </div>
         </div>
@@ -242,7 +242,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
               </p>
             </div>
             <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center">
-              <Clock className="w-6 h-6 text-yellow-600" />
+              <IconClock className="w-6 h-6 text-yellow-600" />
             </div>
           </div>
         </div>
@@ -260,7 +260,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
               </p>
             </div>
             <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center">
-              <CheckCircle2 className="w-6 h-6 text-green-600" />
+              <IconCheckCircle className="w-6 h-6 text-green-600" />
             </div>
           </div>
         </div>
@@ -385,7 +385,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
                       </button>
                     ) : (
                       <button className="text-gray-400 hover:text-gray-600">
-                        <Download className="w-4 h-4" />
+                        <IconDownload className="w-4 h-4" />
                       </button>
                     )}
                   </td>
@@ -416,7 +416,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
                   className="text-gray-400 hover:text-gray-600"
                   disabled={processing}
                 >
-                  <XCircle className="w-6 h-6" />
+                  <IconX className="w-6 h-6" />
                 </button>
               </div>
             </div>
@@ -451,7 +451,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <CreditCard className="w-6 h-6 mx-auto mb-2 text-[#4E747B]" />
+                    <IconCreditCard className="w-6 h-6 mx-auto mb-2 text-[#4E747B]" />
                     <p className="text-sm font-medium">Card</p>
                   </button>
                   <button
@@ -463,7 +463,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <Building2 className="w-6 h-6 mx-auto mb-2 text-[#4E747B]" />
+                    <IconBuilding2 className="w-6 h-6 mx-auto mb-2 text-[#4E747B]" />
                     <p className="text-sm font-medium">EFT</p>
                   </button>
                   <button
@@ -475,7 +475,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <Banknote className="w-6 h-6 mx-auto mb-2 text-[#4E747B]" />
+                    <IconBanknote className="w-6 h-6 mx-auto mb-2 text-[#4E747B]" />
                     <p className="text-sm font-medium">Cash</p>
                   </button>
                 </div>
@@ -695,9 +695,9 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
                 >
                   <div className="flex items-start gap-3">
                     {paymentResult.success ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <IconCheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                     ) : (
-                      <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <IconX className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                     )}
                     <div className="flex-1">
                       <p
@@ -751,7 +751,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ patientId }) => {
                 >
                   {processing ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <IconLoader2 className="w-5 h-5 animate-spin" />
                       Processing...
                     </>
                   ) : (

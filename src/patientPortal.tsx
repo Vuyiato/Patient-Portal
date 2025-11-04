@@ -223,6 +223,7 @@ import {
   type Patient,
 } from "./services/database-service";
 import { validatePassword, validatePasswordMatch } from "../auth-service";
+import { BillingPage } from "./BillingPage";
 
 // ==================== END FIREBASE IMPORTS ====================
 
@@ -345,56 +346,6 @@ type UIInvoice = {
   amount: number;
   date: string;
   status: string;
-};
-/**
- * Hook to fetch and manage invoices data from Firebase
- */
-const useInvoices = () => {
-  const [invoices, setInvoices] = useState<UIInvoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth(); // <-- 1. GET THE USER
-
-  // 2. MODIFY fetchInvoices TO ACCEPT patientId
-  const fetchInvoices = async (patientId: string) => {
-    try {
-      setLoading(true);
-      // 3. PASS THE patientId TO THE SERVICE
-      const data = await getPatientInvoices(patientId);
-
-      // ... (your transform logic)
-      const transformed = data.map((inv) => ({
-        id: inv.id,
-        service: `Invoice ${inv.id?.substring(0, 6) || "N/A"}`,
-        amount: inv.amount,
-        date: inv.date,
-        status: inv.status,
-      }));
-      setInvoices(transformed as any);
-      setError(null);
-    } catch (err: any) {
-      console.error("Error fetching invoices:", err);
-      setError(err.message);
-      setInvoices([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 4. UPDATE useEffect TO USE THE USER'S ID
-  useEffect(() => {
-    if (user) {
-      // Only fetch if the user is loaded
-      fetchInvoices(user.uid);
-    }
-  }, [user]); // Re-run when the user logs in
-
-  return {
-    invoices,
-    loading,
-    error,
-    refetch: () => (user ? fetchInvoices(user.uid) : undefined),
-  };
 };
 
 type UIMessage = {
@@ -736,7 +687,7 @@ const IconMessageSquare: FC<{ className?: string }> = ({ className }) => (
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </IconBase>
 );
-const IconFileText: FC<{ className?: string }> = ({ className }) => (
+export const IconFileText: FC<{ className?: string }> = ({ className }) => (
   <IconBase className={className}>
     <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
     <polyline points="14 2 14 8 20 8" />
@@ -745,7 +696,7 @@ const IconFileText: FC<{ className?: string }> = ({ className }) => (
     <line x1="10" x2="8" y1="9" y2="9" />
   </IconBase>
 );
-const IconCreditCard: FC<{ className?: string }> = ({ className }) => (
+export const IconCreditCard: FC<{ className?: string }> = ({ className }) => (
   <IconBase className={className}>
     <rect width="20" height="14" x="2" y="5" rx="2" />
     <line x1="2" x2="22" y1="10" y2="10" />
@@ -774,13 +725,13 @@ const IconChevronLeft: FC<{ className?: string }> = ({ className }) => (
     <polyline points="15 18 9 12 15 6" />
   </IconBase>
 );
-const IconX: FC<{ className?: string }> = ({ className }) => (
+export const IconX: FC<{ className?: string }> = ({ className }) => (
   <IconBase className={className}>
     <line x1="18" x2="6" y1="6" y2="18" />
     <line x1="6" x2="18" y1="6" y2="18" />
   </IconBase>
 );
-const IconCheckCircle: FC<{ className?: string }> = ({ className }) => (
+export const IconCheckCircle: FC<{ className?: string }> = ({ className }) => (
   <IconBase className={className}>
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
     <polyline points="22 4 12 14.01 9 11.01" />
@@ -811,7 +762,7 @@ const IconPlus: FC<{ className?: string }> = ({ className }) => (
     <line x1="5" x2="19" y1="12" y2="12" />
   </IconBase>
 );
-const IconLoader2: FC<{ className?: string }> = ({ className }) => (
+export const IconLoader2: FC<{ className?: string }> = ({ className }) => (
   <IconBase className={`${className} animate-spin`}>
     <line x1="12" x2="12" y1="2" y2="6" />
     <line x1="12" x2="12" y1="18" y2="22" />
@@ -824,7 +775,7 @@ const IconLoader2: FC<{ className?: string }> = ({ className }) => (
   </IconBase>
 );
 
-const IconAlertCircle: FC<{ className?: string }> = ({ className }) => (
+export const IconAlertCircle: FC<{ className?: string }> = ({ className }) => (
   <IconBase className={className}>
     <circle cx="12" cy="12" r="10" />
     <line x1="12" x2="12" y1="8" y2="12" />
@@ -832,8 +783,36 @@ const IconAlertCircle: FC<{ className?: string }> = ({ className }) => (
   </IconBase>
 );
 
+export const IconBuilding2: FC<{ className?: string }> = ({ className }) => (
+  <IconBase className={className}>
+    <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
+    <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+    <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+    <path d="M10 6h4" />
+    <path d="M10 10h4" />
+    <path d="M10 14h4" />
+    <path d="M10 18h4" />
+  </IconBase>
+);
+
+export const IconBanknote: FC<{ className?: string }> = ({ className }) => (
+  <IconBase className={className}>
+    <rect width="20" height="12" x="2" y="6" rx="2" />
+    <circle cx="12" cy="12" r="2" />
+    <path d="M6 12h.01M18 12h.01" />
+  </IconBase>
+);
+
+export const IconDownload: FC<{ className?: string }> = ({ className }) => (
+  <IconBase className={className}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" x2="12" y1="15" y2="3" />
+  </IconBase>
+);
+
 // Added IconClock to fix missing icon usage (used in BookingModal time slots)
-const IconClock: FC<{ className?: string }> = ({ className }) => (
+export const IconClock: FC<{ className?: string }> = ({ className }) => (
   <IconBase className={className}>
     <circle cx="12" cy="12" r="10" />
     <polyline points="12 7 12 12 15 14" />
@@ -852,7 +831,7 @@ const IconMail: FC<{ className?: string }> = ({ className }) => (
     <polyline points="22 6 12 13 2 6" />
   </IconBase>
 );
-const IconHome: FC<{ className?: string }> = ({ className }) => (
+export const IconHome: FC<{ className?: string }> = ({ className }) => (
   <IconBase className={className}>
     <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
     <polyline points="9 22 9 12 15 12 15 22" />
@@ -1025,7 +1004,7 @@ const ToastContainer: FC<{
 const AppContext = createContext<AppContextType | undefined>(undefined);
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const useAppContext = () => {
+export const useAppContext = () => {
   const context = useContext(AppContext);
   if (!context)
     throw new Error("useAppContext must be used within AppProvider");
@@ -4203,136 +4182,6 @@ export const ChatPage: FC = () => {
   );
 };
 
-// --- BILLING PAGE (Enhanced with Animations) ---
-
-// ============================================================
-// BILLING PAGE
-// ============================================================
-const BillingPage: FC = () => {
-  const { showToast } = useAppContext();
-
-  // Use Firebase data
-  const { invoices, loading, error, refetch } = useInvoices();
-
-  const staggerItems = useStaggerAnimation(invoices.length, 100);
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <IconLoader2 className="w-8 h-8 text-brand-teal animate-spin" />
-        <span className="ml-3 text-gray-600">
-          Loading billing information...
-        </span>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-600 mb-4">Error: {error}</p>
-        <Button onClick={refetch}>Retry</Button>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h2 className="text-4xl font-bold text-brand-dark mb-6 animate-slide-in-right">
-        Billing & Payments
-      </h2>
-
-      <Card className="mb-6 relative overflow-hidden animate-scale-in">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-brand-yellow/20 rounded-full blur-3xl animate-float" />
-        <div className="relative z-10">
-          <h3 className="text-2xl font-semibold text-brand-dark mb-4 flex items-center gap-2">
-            <IconCreditCard className="w-6 h-6 text-brand-teal" />
-            Pending Payment
-          </h3>
-          <p className="text-lg text-gray-600 mb-1">Consultation Fee</p>
-          <p className="text-5xl font-bold text-brand-dark mb-6 animate-bounce-subtle">
-            R1300.00
-          </p>
-          <Button
-            size="lg"
-            className="w-full sm:w-auto"
-            onClick={() =>
-              showToast("Redirecting to payment gateway...", "info")
-            }
-          >
-            <IconCreditCard className="w-5 h-5" />
-            Pay Securely Now
-          </Button>
-        </div>
-      </Card>
-
-      <h3 className="text-2xl font-semibold text-brand-dark mb-4 animate-slide-in-left">
-        Invoice History
-      </h3>
-
-      <div className="space-y-4">
-        {invoices.map((invoice, index) => (
-          <Card
-            key={invoice.id}
-            className="animate-slide-up"
-            style={staggerItems[index].style}
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-brand-teal/10 rounded-lg">
-                  <IconCreditCard className="w-6 h-6 text-brand-teal" />
-                </div>
-                <div>
-                  <p className="font-semibold text-lg text-brand-dark">
-                    {invoice.service}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {new Date(invoice.date).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <p className="text-lg font-medium text-brand-dark">
-                  R{invoice.amount.toFixed(2)}
-                </p>
-                <span
-                  className={`
-                    px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 hover:scale-105
-                    ${
-                      invoice.status === "Paid"
-                        ? "bg-green-100 text-green-800 hover:bg-green-200"
-                        : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-                    }
-                  `}
-                >
-                  {invoice.status}
-                </span>
-                {invoice.status === "Paid" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      showToast(
-                        `Downloading receipt for ${invoice.service}`,
-                        "success"
-                      )
-                    }
-                  >
-                    Receipt
-                  </Button>
-                )}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 // --- PROFILE PAGE (Enhanced with Animations) ---
 
 // ============================================================
@@ -4580,7 +4429,10 @@ const App: FC = () => {
             <Route path="/appointments" element={<AppointmentsPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/chat" element={<ChatPage />} />
-            <Route path="/billing" element={<BillingPage />} />
+            <Route
+              path="/billing"
+              element={<BillingPage patientId={user.uid} />}
+            />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
 
@@ -4600,10 +4452,12 @@ const App: FC = () => {
 // ============================================================
 export default function Root() {
   return (
-    <AuthProvider>
-      <AppProvider>
-        <App />
-      </AppProvider>
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppProvider>
+          <App />
+        </AppProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
