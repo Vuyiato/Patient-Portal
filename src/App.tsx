@@ -1,5 +1,5 @@
 import React from "react";
-import { Route, Routes, Navigate } from "react-router-dom";
+import { Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import {
   Dashboard,
@@ -15,24 +15,13 @@ import {
   DocumentsPage,
 } from "./components/Icons";
 
-// 2. Import your page components
 import BillingPage from "./BillingPage";
+import LoginPage from "./pages/LoginPage";
 
-function App() {
-  // 3. Get the real user and loading state
-  const { currentUser, loading } = useAuth();
+const AppLayout = () => {
+  const { currentUser } = useAuth();
+  if (!currentUser) return null; // Should not happen if routes are correct
 
-  // 4. Handle the auth loading state
-  if (loading) {
-    return <div>Loading user data...</div>;
-  }
-
-  // 5. Handle the logged-out state
-  if (!currentUser) {
-    return <div>Please log in. (Login page not routed yet)</div>;
-  }
-
-  // 6. User is logged in. Render the app layout.
   return (
     <div className="flex h-screen bg-brand-light">
       <Sidebar />
@@ -40,27 +29,51 @@ function App() {
         <Header />
         <PageWrapper>
           <Routes>
-            {/* --- ADD ALL YOUR ROUTES --- */}
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/appointments" element={<AppointmentsPage />} />
-            <Route path="/documents" element={<DocumentsPage />} />
-            <Route path="/chat" element={<ChatPage />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="appointments" element={<AppointmentsPage />} />
+            <Route path="documents" element={<DocumentsPage />} />
+            <Route path="chat" element={<ChatPage />} />
             <Route
-              path="/billing"
+              path="billing"
               element={<BillingPage patientId={currentUser.uid} />}
             />
             <Route
-              path="/profile"
+              path="profile"
               element={<ProfilePage patientId={currentUser.uid} />}
             />
-            <Route path="/settings" element={<SettingsPage />} />
-
-            {/* Default route */}
+            <Route path="settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </PageWrapper>
       </div>
     </div>
+  );
+};
+
+const ProtectedRoute: React.FC = () => {
+  const { currentUser } = useAuth();
+  return currentUser ? <AppLayout /> : <Navigate to="/login" replace />;
+};
+
+const PublicRoute: React.FC = () => {
+  const { currentUser } = useAuth();
+  return !currentUser ? <Outlet /> : <Navigate to="/dashboard" replace />;
+};
+
+function App() {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading user data...</div>;
+  }
+
+  return (
+    <Routes>
+      <Route element={<PublicRoute />}>
+        <Route path="/login" element={<LoginPage />} />
+      </Route>
+      <Route path="/*" element={<ProtectedRoute />} />
+    </Routes>
   );
 }
 
