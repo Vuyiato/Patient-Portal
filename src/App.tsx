@@ -1,7 +1,7 @@
 import React from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
+import { useAuth } from "./contexts/AuthContext";
 import {
-  useAuth,
   Dashboard,
   ChatPage,
   ProfilePage,
@@ -20,10 +20,10 @@ import BillingPage from "./BillingPage";
 
 function App() {
   // 3. Get the real user and loading state
-  const { user: currentUser, isLoading } = useAuth();
+  const { currentUser, loading } = useAuth();
 
   // 4. Handle the auth loading state
-  if (isLoading) {
+  if (loading) {
     return <div>Loading user data...</div>;
   }
 
