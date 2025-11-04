@@ -499,7 +499,7 @@ export const Dashboard: FC = () => {
           </h3>
           <Button
             variant="ghost"
-            onClick={() => showToast("View all appointments", "info")}
+            onClick={() => showToast("Navigating to appointments...", "info")}
           >
             View All
           </Button>
@@ -563,7 +563,7 @@ export const Dashboard: FC = () => {
           </h3>
           <Button
             variant="ghost"
-            onClick={() => showToast("View all documents", "info")}
+            onClick={() => showToast("Navigating to documents...", "info")}
           >
             View All
           </Button>
@@ -4187,111 +4187,214 @@ export const ChatPage: FC = () => {
 // ============================================================
 // PROFILE PAGE
 // ============================================================
-export const ProfilePage: FC = () => {
-  const { user } = useAuth();
+export const ProfilePage: FC<{ patientId: string }> = ({ patientId }) => {
+  const { logout } = useAuth();
   const { showToast } = useAppContext();
+  const [isEditing, setIsEditing] = useState(false);
+  const [profile, setProfile] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSave = () => {
-    showToast("Profile updated successfully!", "success");
+  useEffect(() => {
+    if (!patientId) {
+      setLoading(false);
+      setError("Patient ID not found. Please log in again.");
+      return;
+    }
+
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const data = await getPatientProfile(patientId);
+        if (data) {
+          setProfile(data);
+        } else {
+          setError("Could not find patient profile.");
+        }
+      } catch (err: any) {
+        console.error("Error fetching profile:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [patientId]);
+
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!profile || !patientId) return;
+
+    setIsEditing(false);
+    showToast("Updating profile...", "info");
+
+    try {
+      await updatePatientProfile(patientId, profile);
+      showToast("Profile updated successfully!", "success");
+    } catch (err: any) {
+      showToast(`Error: ${err.message}`, "error");
+    }
   };
 
+  const handleInputChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    if (profile) {
+      setProfile({ ...profile, [name]: value });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <IconLoader2 className="w-8 h-8 text-brand-teal animate-spin" />
+        <span className="ml-3 text-gray-600">Loading profile...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 mb-4">Error: {error}</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600">No profile data available.</p>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <h2 className="text-4xl font-bold text-brand-dark mb-8 animate-slide-in-right">
-        My Profile
-      </h2>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-slide-in-right">
+        <div>
+          <h2 className="text-4xl font-bold text-brand-dark mb-2">
+            Your Profile
+          </h2>
+          <p className="text-gray-600">
+            View and manage your personal information
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={isEditing ? "primary" : "secondary"}
+            onClick={() => setIsEditing(!isEditing)}
+          >
+            {isEditing ? "Cancel" : "Edit Profile"}
+          </Button>
+          {isEditing && <Button type="submit">Save Changes</Button>}
+        </div>
+      </div>
 
       <Card className="animate-scale-in">
-        <div className="flex items-center gap-6 mb-8 animate-slide-in-left">
-          <div className="relative group">
-            <img
-              src={user?.photoURL}
-              alt="Profile"
-              className="w-24 h-24 rounded-full border-4 border-brand-yellow shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:border-brand-teal"
-              onError={(e) =>
-                (e.currentTarget.src =
-                  "https://placehold.co/100x100/F4E48E/4E747B?text=JD")
-              }
-            />
-            <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-green-500 rounded-full border-2 border-white animate-pulse" />
-          </div>
-          <div>
-            <Button
-              variant="secondary"
-              onClick={() => showToast("Photo upload coming soon!", "info")}
-            >
-              Change Photo
-            </Button>
-            <p className="text-sm text-gray-500 mt-2">
-              JPG, GIF or PNG. 1MB max.
-            </p>
-          </div>
-        </div>
+        <form onSubmit={handleUpdate}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Profile Header */}
+            <div className="md:col-span-2 flex flex-col items-center md:flex-row gap-6 p-6 bg-gradient-to-r from-brand-teal/5 to-brand-yellow/5 rounded-xl">
+              <div className="relative">
+                <img
+                  src={profile.photoURL}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-full border-4 border-brand-yellow shadow-lg"
+                  onError={(e) =>
+                    (e.currentTarget.src =
+                      "https://placehold.co/100x100/F4E48E/4E747B?text=JD")
+                  }
+                />
+                <button
+                  type="button"
+                  className="absolute bottom-0 right-0 p-2 bg-brand-teal text-white rounded-full hover:scale-110 transition-transform"
+                >
+                  <IconPlus className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="text-center md:text-left">
+                <h3 className="text-2xl font-bold text-brand-dark">
+                  {profile.name}
+                </h3>
+                <p className="text-gray-600">{profile.email}</p>
+              </div>
+            </div>
 
-        <form
-          className="grid grid-cols-1 md:grid-cols-2 gap-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSave();
-          }}
-        >
-          <div className="animate-slide-up" style={{ animationDelay: "100ms" }}>
-            <Input
-              id="displayName"
-              label="Full Name"
-              defaultValue={user?.displayName}
-              icon={<IconUser />}
-            />
-          </div>
+            {/* Personal Information */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-brand-dark border-b-2 border-brand-yellow pb-2">
+                Personal Information
+              </h4>
+              <Input
+                id="name"
+                label="Full Name"
+                value={profile.name}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+              />
+              <Input
+                id="email"
+                label="Email Address"
+                type="email"
+                value={profile.email}
+                disabled // Email is usually not editable
+              />
+              <Input
+                id="phone"
+                label="Phone Number"
+                value={profile.phone}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+              />
+              <Input
+                id="dob"
+                label="Date of Birth"
+                type="date"
+                value={profile.dob}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+              />
+            </div>
 
-          <div className="animate-slide-up" style={{ animationDelay: "150ms" }}>
-            <Input
-              id="email"
-              label="Email Address"
-              defaultValue={user?.email}
-              disabled
-              icon={<IconMail />}
-            />
-          </div>
-
-          <div className="animate-slide-up" style={{ animationDelay: "200ms" }}>
-            <Input
-              id="phone"
-              label="Phone Number"
-              placeholder="(012) 345-6789"
-            />
-          </div>
-
-          <div className="animate-slide-up" style={{ animationDelay: "250ms" }}>
-            <Input
-              id="dob"
-              label="Date of Birth"
-              type="date"
-              placeholder="YYYY-MM-DD"
-              icon={<IconCalendar />}
-            />
-          </div>
-
-          <div
-            className="md:col-span-2 animate-slide-up"
-            style={{ animationDelay: "300ms" }}
-          >
-            <Input
-              id="address"
-              label="Home Address"
-              placeholder="123 Skin St, Pretoria"
-              icon={<IconHome />}
-            />
-          </div>
-
-          <div
-            className="pt-4 flex justify-end md:col-span-2 animate-slide-up"
-            style={{ animationDelay: "350ms" }}
-          >
-            <Button size="lg" type="submit">
-              <IconCheck className="w-5 h-5 mr-2" />
-              Save Changes
-            </Button>
+            {/* Address Information */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-brand-dark border-b-2 border-brand-yellow pb-2">
+                Address
+              </h4>
+              <Input
+                id="address"
+                label="Street Address"
+                value={profile.address}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  id="city"
+                  label="City"
+                  value={profile.city}
+                  onChange={handleInputChange}
+                  disabled={!isEditing}
+                />
+                <Input
+                  id="state"
+                  label="State"
+                  value={profile.state}
+                  onChange={handleInputChange}
+                  disabled={!isEditing}
+                />
+              </div>
+              <Input
+                id="zip"
+                label="ZIP Code"
+                value={profile.zip}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+              />
+            </div>
           </div>
         </form>
       </Card>
@@ -4433,7 +4536,10 @@ const App: FC = () => {
               path="/billing"
               element={<BillingPage patientId={user.uid} />}
             />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route
+              path="/profile"
+              element={<ProfilePage patientId={user.uid} />}
+            />
             <Route path="/settings" element={<SettingsPage />} />
 
             {/* Default route */}

@@ -629,6 +629,9 @@ export interface Patient {
   phone?: string;
   dob?: string;
   address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   lastVisit?: string;
   vitals?: {
     bloodPressure?: string;

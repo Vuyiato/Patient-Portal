@@ -50,7 +50,10 @@ function App() {
               path="/billing"
               element={<BillingPage patientId={currentUser.uid} />}
             />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route
+              path="/profile"
+              element={<ProfilePage patientId={currentUser.uid} />}
+            />
             <Route path="/settings" element={<SettingsPage />} />
 
             {/* Default route */}
