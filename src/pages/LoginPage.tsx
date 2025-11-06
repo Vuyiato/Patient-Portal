@@ -16,6 +16,7 @@ import Input from "../components/Input";
 import {
   validatePassword,
   validatePasswordMatch,
+  validateEmail,
 } from "../services/auth-service";
 
 // --- ANIMATED PARTICLES (Background Effect) ---
@@ -71,10 +72,14 @@ const LoginPage: FC = () => {
   const [displayName, setDisplayName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
   const [errors, setErrors] = useState<{
     password?: string;
     confirmPassword?: string;
     general?: string;
+    email?: string;
   }>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -83,6 +88,15 @@ const LoginPage: FC = () => {
     setIsLoading(true);
 
     try {
+      // Validate email format
+      const emailValidation = validateEmail(email);
+      if (!emailValidation.isValid) {
+        setErrors({ email: emailValidation.error });
+        setIsLoading(false);
+        showToast(emailValidation.error || "Invalid email", "error");
+        return;
+      }
+
       if (isLogin) {
         await login(email, password);
         showToast("Welcome back! 🎉", "success");
@@ -105,7 +119,10 @@ const LoginPage: FC = () => {
         }
 
         await signup(email, password, displayName);
-        showToast("Account created successfully! 🎊", "success");
+        showToast(
+          "Account created successfully! 🎊 Please check your email to verify your account.",
+          "success"
+        );
       }
     } catch (error: any) {
       console.error("Login/Signup Error:", error);
@@ -128,16 +145,28 @@ const LoginPage: FC = () => {
   };
 
   const handleForgotPassword = async () => {
-    if (!email) {
+    if (!resetEmail) {
       showToast("Please enter your email address", "error");
       return;
     }
 
+    // Validate email format
+    const emailValidation = validateEmail(resetEmail);
+    if (!emailValidation.isValid) {
+      showToast(emailValidation.error || "Invalid email", "error");
+      return;
+    }
+
     try {
-      await resetPassword(email);
-      showToast("Password reset email sent! 📧", "success");
+      setResetLoading(true);
+      const result = await resetPassword(resetEmail);
+      showToast(result.message || "Password reset email sent! 📧", "success");
+      setShowForgotPassword(false);
+      setResetEmail("");
     } catch (error: any) {
       showToast(error.message || "Failed to send reset email", "error");
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -256,6 +285,7 @@ const LoginPage: FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   icon={<IconMail />}
+                  error={errors.email}
                 />
               </div>
 
@@ -344,7 +374,7 @@ const LoginPage: FC = () => {
                   <button
                     type="button"
                     className="text-brand-teal hover:text-brand-dark font-medium hover:underline transition-all hover:scale-105"
-                    onClick={handleForgotPassword}
+                    onClick={() => setShowForgotPassword(true)}
                   >
                     Forgot Password?
                   </button>
@@ -463,6 +493,70 @@ const LoginPage: FC = () => {
       >
         <IconLock className="w-10 h-10 text-brand-yellow" />
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-scale-in">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-brand-teal to-brand-dark rounded-full flex items-center justify-center mx-auto mb-4">
+                <IconMail className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-brand-dark mb-2">
+                Reset Password
+              </h2>
+              <p className="text-gray-600">
+                Enter your email address and we'll send you a link to reset your
+                password.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <Input
+                id="resetEmail"
+                label="Email Address"
+                type="email"
+                placeholder="jane@example.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                icon={<IconMail />}
+              />
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setResetEmail("");
+                  }}
+                  className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all duration-300"
+                  disabled={resetLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={resetLoading || !resetEmail}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-brand-teal to-brand-dark text-white rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                >
+                  {resetLoading ? (
+                    <>
+                      <IconLoader2 className="w-5 h-5 animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <IconArrowRight className="w-5 h-5" />
+                      <span>Send Reset Link</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

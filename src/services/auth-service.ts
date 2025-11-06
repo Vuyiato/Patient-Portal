@@ -9,10 +9,83 @@ import {
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
+  sendEmailVerification,
   User,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, googleProvider } from "./firebase-config";
+
+/**
+ * EMAIL VALIDATION
+ * Validates email format and domain
+ */
+export const validateEmail = (
+  email: string
+): {
+  isValid: boolean;
+  error?: string;
+} => {
+  // Check if email is empty
+  if (!email || email.trim() === "") {
+    return {
+      isValid: false,
+      error: "Email is required.",
+    };
+  }
+
+  // Check for @ symbol
+  if (!email.includes("@")) {
+    return {
+      isValid: false,
+      error: "Email must contain @ symbol.",
+    };
+  }
+
+  // Basic email format regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return {
+      isValid: false,
+      error: "Please enter a valid email address.",
+    };
+  }
+
+  // Check for valid domain (must have .com, .co.za, .net, .org, etc.)
+  const domainRegex = /\.(com|net|org|edu|gov|co\.za|za|io|me|info|biz)$/i;
+  if (!domainRegex.test(email)) {
+    return {
+      isValid: false,
+      error: "Email must have a valid domain (.com, .net, .org, .co.za, etc.).",
+    };
+  }
+
+  // Check for common typos in popular domains
+  const domain = email.split("@")[1].toLowerCase();
+  const commonDomains = [
+    "gmail.com",
+    "yahoo.com",
+    "outlook.com",
+    "hotmail.com",
+    "icloud.com",
+  ];
+  const typos: { [key: string]: string } = {
+    "gmial.com": "gmail.com",
+    "gmai.com": "gmail.com",
+    "yahooo.com": "yahoo.com",
+    "yaho.com": "yahoo.com",
+    "outlok.com": "outlook.com",
+    "hotmial.com": "hotmail.com",
+  };
+
+  if (typos[domain]) {
+    return {
+      isValid: false,
+      error: `Did you mean ${typos[domain]}?`,
+    };
+  }
+
+  return { isValid: true };
+};
 
 /**
  * PASSWORD VALIDATION
@@ -77,6 +150,12 @@ export const validatePasswordMatch = (
  */
 export const loginWithEmail = async (email: string, password: string) => {
   try {
+    // Validate email format
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      throw new Error(emailValidation.error);
+    }
+
     const userCredential = await signInWithEmailAndPassword(
       auth,
       email,
@@ -115,6 +194,12 @@ export const signupWithEmail = async (
   try {
     console.log("Starting signup process for:", email);
 
+    // Validate email format
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      throw new Error(emailValidation.error);
+    }
+
     // Validate password before attempting signup
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
@@ -129,6 +214,14 @@ export const signupWithEmail = async (
       password
     );
     console.log("User account created with UID:", userCredential.user.uid);
+
+    // Send email verification
+    console.log("Sending verification email...");
+    await sendEmailVerification(userCredential.user, {
+      url: window.location.origin + "/dashboard",
+      handleCodeInApp: false,
+    });
+    console.log("Verification email sent successfully");
 
     // Update profile with display name
     console.log("Updating user profile...");
@@ -146,6 +239,7 @@ export const signupWithEmail = async (
       lastVisit: serverTimestamp(),
       role: "patient",
       status: "active",
+      emailVerified: false,
       ...additionalData,
     };
 
@@ -270,7 +364,21 @@ export const logout = async () => {
  */
 export const resetPassword = async (email: string) => {
   try {
-    await sendPasswordResetEmail(auth, email);
+    // Validate email format
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      throw new Error(emailValidation.error);
+    }
+
+    await sendPasswordResetEmail(auth, email, {
+      url: window.location.origin + "/login",
+      handleCodeInApp: false,
+    });
+
+    return {
+      success: true,
+      message: `Password reset email sent to ${email}. Please check your inbox.`,
+    };
   } catch (error: any) {
     console.error("Password reset error:", error);
     throw new Error(getAuthErrorMessage(error.code));
