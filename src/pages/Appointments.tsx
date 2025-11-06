@@ -15,6 +15,7 @@ import {
   getPatientAppointments,
   updateAppointment,
   cancelAppointment,
+  bookAppointment,
   Appointment as FirebaseAppointment,
 } from "../services/database-service";
 
@@ -35,6 +36,16 @@ const Appointments = () => {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bookingLoading, setBookingLoading] = useState(false);
+
+  // Booking form state
+  const [bookingForm, setBookingForm] = useState({
+    date: "",
+    time: "",
+    type: "",
+    notes: "",
+    doctorName: "Dr. Jabu Nkehli",
+  });
 
   // Fetch appointments from Firebase
   useEffect(() => {
@@ -94,6 +105,79 @@ const Appointments = () => {
     } catch (error) {
       console.error("Error cancelling appointment:", error);
       showToast("Failed to cancel appointment", "error");
+    }
+  };
+
+  const handleBookAppointment = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user) {
+      showToast("Please login to book an appointment", "error");
+      return;
+    }
+
+    // Validate form
+    if (!bookingForm.date || !bookingForm.time || !bookingForm.type) {
+      showToast("Please fill in all required fields", "error");
+      return;
+    }
+
+    try {
+      setBookingLoading(true);
+
+      // Create appointment data
+      const appointmentData = {
+        patientId: user.uid,
+        patientName: user.displayName || user.email || "Patient",
+        date: bookingForm.date,
+        time: bookingForm.time,
+        type: bookingForm.type,
+        status: "Pending" as const,
+        doctorName: bookingForm.doctorName,
+        notes: bookingForm.notes,
+      };
+
+      // Book appointment in Firebase
+      await bookAppointment(appointmentData);
+
+      // Refresh appointments list
+      const data = await getPatientAppointments(user.uid);
+      const transformedData: Appointment[] = data.map((apt) => {
+        let status: "upcoming" | "completed" | "cancelled" = "upcoming";
+        if (apt.status === "Completed") status = "completed";
+        else if (apt.status === "Cancelled") status = "cancelled";
+        else status = "upcoming";
+
+        return {
+          id: apt.id || "",
+          title: apt.type,
+          doctor: apt.doctorName || "Dr. Jabu Nkehli",
+          date: apt.date,
+          time: apt.time,
+          location: "Dermaglare Clinic - Main Branch",
+          type: apt.type,
+          status: status,
+        };
+      });
+
+      setAppointments(transformedData);
+
+      // Reset form and close modal
+      setBookingForm({
+        date: "",
+        time: "",
+        type: "",
+        notes: "",
+        doctorName: "Dr. Jabu Nkehli",
+      });
+      setShowBookingModal(false);
+      setBookingLoading(false);
+
+      showToast("Appointment booked successfully! 🎉", "success");
+    } catch (error) {
+      console.error("Error booking appointment:", error);
+      showToast("Failed to book appointment", "error");
+      setBookingLoading(false);
     }
   };
 
@@ -358,23 +442,205 @@ const Appointments = () => {
         </div>
       )}
 
-      {/* Booking Modal (simplified for now) */}
+      {/* Booking Modal */}
       {showBookingModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl animate-scale-in">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              Book Appointment
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Booking functionality coming soon! Please call our clinic to
-              schedule.
-            </p>
-            <button
-              onClick={() => setShowBookingModal(false)}
-              className="w-full bg-gradient-to-r from-brand-teal to-brand-dark text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
-            >
-              Close
-            </button>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full mx-4 shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-brand-teal to-brand-dark p-6 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold text-white mb-1">
+                    Book New Appointment
+                  </h2>
+                  <p className="text-brand-yellow">
+                    Schedule your visit with us
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowBookingModal(false)}
+                  className="text-white hover:text-brand-yellow transition-colors p-2 hover:bg-white/10 rounded-lg"
+                >
+                  <IconX className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleBookAppointment} className="p-6 space-y-6">
+              {/* Appointment Type */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Appointment Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={bookingForm.type}
+                  onChange={(e) =>
+                    setBookingForm({ ...bookingForm, type: e.target.value })
+                  }
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-brand-teal focus:outline-none transition-colors text-gray-700"
+                  required
+                >
+                  <option value="">Select appointment type</option>
+                  <option value="General Consultation">
+                    General Consultation
+                  </option>
+                  <option value="Skin Checkup">Skin Checkup</option>
+                  <option value="Acne Treatment">Acne Treatment</option>
+                  <option value="Laser Treatment">Laser Treatment</option>
+                  <option value="Chemical Peel">Chemical Peel</option>
+                  <option value="Botox/Fillers">Botox/Fillers</option>
+                  <option value="Mole Removal">Mole Removal</option>
+                  <option value="Follow-up">Follow-up Visit</option>
+                </select>
+              </div>
+
+              {/* Doctor Selection */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Doctor <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={bookingForm.doctorName}
+                  onChange={(e) =>
+                    setBookingForm({
+                      ...bookingForm,
+                      doctorName: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-brand-teal focus:outline-none transition-colors text-gray-700"
+                  required
+                >
+                  <option value="Dr. Jabu Nkehli">
+                    Dr. Jabu Nkehli - Dermatologist
+                  </option>
+                  <option value="Dr. Sarah Johnson">
+                    Dr. Sarah Johnson - Specialist
+                  </option>
+                  <option value="Dr. Michael Chen">
+                    Dr. Michael Chen - Cosmetic Dermatology
+                  </option>
+                </select>
+              </div>
+
+              {/* Date and Time */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Date */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Preferred Date <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <IconCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="date"
+                      value={bookingForm.date}
+                      onChange={(e) =>
+                        setBookingForm({ ...bookingForm, date: e.target.value })
+                      }
+                      min={new Date().toISOString().split("T")[0]}
+                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-brand-teal focus:outline-none transition-colors text-gray-700"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Time */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Preferred Time <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <IconClock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <select
+                      value={bookingForm.time}
+                      onChange={(e) =>
+                        setBookingForm({ ...bookingForm, time: e.target.value })
+                      }
+                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-brand-teal focus:outline-none transition-colors text-gray-700"
+                      required
+                    >
+                      <option value="">Select time</option>
+                      <option value="08:00 AM">08:00 AM</option>
+                      <option value="09:00 AM">09:00 AM</option>
+                      <option value="10:00 AM">10:00 AM</option>
+                      <option value="11:00 AM">11:00 AM</option>
+                      <option value="12:00 PM">12:00 PM</option>
+                      <option value="01:00 PM">01:00 PM</option>
+                      <option value="02:00 PM">02:00 PM</option>
+                      <option value="03:00 PM">03:00 PM</option>
+                      <option value="04:00 PM">04:00 PM</option>
+                      <option value="05:00 PM">05:00 PM</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Notes */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Additional Notes (Optional)
+                </label>
+                <textarea
+                  value={bookingForm.notes}
+                  onChange={(e) =>
+                    setBookingForm({ ...bookingForm, notes: e.target.value })
+                  }
+                  rows={4}
+                  placeholder="Please provide any additional information about your condition or concerns..."
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-brand-teal focus:outline-none transition-colors resize-none text-gray-700"
+                />
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                <div className="flex gap-3">
+                  <IconCalendar className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-semibold mb-1">Important Information:</p>
+                    <ul className="space-y-1 list-disc list-inside">
+                      <li>
+                        Appointments are subject to availability and
+                        confirmation
+                      </li>
+                      <li>
+                        You will receive a confirmation email within 24 hours
+                      </li>
+                      <li>Please arrive 10 minutes before your appointment</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowBookingModal(false)}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all duration-300"
+                  disabled={bookingLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={bookingLoading}
+                  className="flex-1 bg-gradient-to-r from-brand-teal to-brand-dark text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                >
+                  {bookingLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Booking...</span>
+                    </>
+                  ) : (
+                    <>
+                      <IconCheck className="w-5 h-5" />
+                      <span>Confirm Booking</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
