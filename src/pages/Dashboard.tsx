@@ -319,11 +319,23 @@ const Dashboard = () => {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             {/* Dermaglare Logo - Bigger and More Visible */}
             <div className="flex items-center gap-6">
-              <img
-                src="https://dermaglare.co.za/wp-content/uploads/2023/10/Dermaglare-logo-website.webp"
-                alt="Dermaglare Logo"
-                className="h-24 w-auto object-contain animate-fade-in drop-shadow-2xl"
-              />
+              <div className="bg-white/95 p-4 rounded-2xl shadow-2xl backdrop-blur-sm">
+                <img
+                  src="https://dermaglareskin.co.za/wp-content/uploads/2023/07/Dermaglare-Skin.png"
+                  alt="Dermaglare Logo"
+                  className="h-20 w-auto object-contain"
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML =
+                        '<span class="text-4xl font-bold text-brand-teal px-4">DERMAGLARE</span>';
+                    }
+                  }}
+                />
+              </div>
               <div className="border-l-2 border-brand-yellow/50 pl-6">
                 <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 animate-slide-in-left flex items-center gap-3">
                   {timeOfDay},{" "}

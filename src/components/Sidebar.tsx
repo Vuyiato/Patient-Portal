@@ -74,20 +74,32 @@ const SidebarLayout: React.FC<SidebarProps> = ({ children }) => {
       }`}
     >
       {/* Logo Section */}
-      <div className="flex items-center justify-between p-4 h-24 border-b border-white/10 relative overflow-hidden">
+      <div className="flex items-center justify-between p-4 h-28 border-b border-white/10 relative overflow-hidden">
         {/* Animated gradient background */}
         <div className="absolute inset-0 bg-gradient-to-r from-brand-yellow/10 to-transparent animate-gradient-x"></div>
 
         <div
-          className={`flex items-center overflow-hidden transition-all duration-500 relative z-10 ${
+          className={`flex items-center justify-center overflow-hidden transition-all duration-500 relative z-10 ${
             isSidebarOpen ? "w-full" : "w-0"
           }`}
         >
-          <img
-            src="https://dermaglareskin.co.za/wp-content/uploads/2023/07/Dermaglare-Skin.png"
-            alt="Dermaglare Skin"
-            className="h-12 w-auto object-contain drop-shadow-lg"
-          />
+          <div className="bg-white/95 px-4 py-2 rounded-xl shadow-lg">
+            <img
+              src="https://dermaglareskin.co.za/wp-content/uploads/2023/07/Dermaglare-Skin.png"
+              alt="Dermaglare Skin"
+              className="h-16 w-auto object-contain"
+              onError={(e) => {
+                // Fallback if image fails to load
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const parent = target.parentElement;
+                if (parent) {
+                  parent.innerHTML =
+                    '<span class="text-2xl font-bold text-brand-teal">DERMAGLARE</span>';
+                }
+              }}
+            />
+          </div>
         </div>
         <button
           onClick={() => setSidebarOpen(!isSidebarOpen)}
