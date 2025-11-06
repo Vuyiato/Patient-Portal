@@ -2,7 +2,6 @@ import React, { useState, FC } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { loginWithGoogle, resetPassword } from "../services/auth-service";
 import {
-  DermагlareLogo,
   IconLoader2,
   IconAlertCircle,
   IconLock,
@@ -190,7 +189,11 @@ const LoginPage: FC = () => {
               <div className="relative inline-block mb-6 animate-slide-up">
                 {/* Logo with animated effects */}
                 <div className="relative p-4 bg-white rounded-3xl shadow-2xl animate-pulse-glow">
-                  <DermагlareLogo className="h-16" />
+                  <img
+                    src="https://dermaglareskin.co.za/wp-content/uploads/2023/07/Dermaglare-Skin.png"
+                    alt="Dermaglare Skin"
+                    className="h-16 w-auto object-contain"
+                  />
                 </div>
                 {/* Floating rings around logo */}
                 <div className="absolute inset-0 border-4 border-brand-yellow/30 rounded-3xl animate-ping" />

@@ -49,9 +49,9 @@ const Chat = () => {
   const contacts: Contact[] = [
     {
       id: 1,
-      name: "Dr. Sarah Johnson",
+      name: "Dr. Jabu Nkehli",
       role: "Dermatologist",
-      avatar: "SJ",
+      avatar: "JN",
       online: true,
       lastMessage: "Your lab results are ready",
       unread: 2,
