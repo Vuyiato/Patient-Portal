@@ -15,7 +15,7 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../firebase-config";
+import { db } from "./services/firebase-config";
 
 // ============================================================
 // SERVICE PRICING CONFIGURATION
