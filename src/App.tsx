@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 
-import BillingPage from "./BillingPage";
+import BillingPage from "./pages/Billing";
 import LoginPage from "./pages/LoginPage";
 import SidebarLayout from "./components/Sidebar";
 import DashboardPage from "./pages/Dashboard";
@@ -24,7 +24,7 @@ const AppLayout = () => {
         <Route path="appointments" element={<AppointmentsPage />} />
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="chat" element={<ChatPage />} />
-        <Route path="billing" element={<BillingPage patientId={user.uid} />} />
+        <Route path="billing" element={<BillingPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -135,15 +135,76 @@ export const updateAppointment = async (
 };
 
 /**
- * Cancel appointment
+ * Cancel appointment with 10% cancellation fee
  */
 export const cancelAppointment = async (
-  appointmentId: string
-): Promise<void> => {
+  appointmentId: string,
+  applyFee: boolean = true
+): Promise<{
+  success: boolean;
+  invoiceId?: string;
+  cancellationFee?: number;
+}> => {
   try {
-    await updateDoc(doc(db, "appointments", appointmentId), {
+    // Get appointment details
+    const appointmentRef = doc(db, "appointments", appointmentId);
+    const appointmentSnap = await getDoc(appointmentRef);
+
+    if (!appointmentSnap.exists()) {
+      throw new Error("Appointment not found");
+    }
+
+    const appointmentData = appointmentSnap.data();
+
+    // Update appointment status
+    await updateDoc(appointmentRef, {
       status: "Cancelled",
+      cancelledAt: serverTimestamp(),
     });
+
+    // If fee should be applied, create cancellation fee invoice
+    if (applyFee && appointmentData.patientId) {
+      // Import dynamically to avoid circular dependency
+      const { createCancellationFeeInvoice, getServicePrice } = await import(
+        "../billing-service"
+      );
+      const { sendCancellationFeeEmail } = await import("./email-service");
+
+      const serviceType = appointmentData.type || appointmentData.serviceType;
+      const servicePrice = getServicePrice(serviceType);
+
+      if (servicePrice) {
+        const cancellationFee = servicePrice.basePrice * 0.1;
+
+        // Create cancellation fee invoice
+        const invoice = await createCancellationFeeInvoice(
+          appointmentId,
+          appointmentData.patientId
+        );
+
+        // Send cancellation fee email
+        if (appointmentData.patientEmail) {
+          await sendCancellationFeeEmail(
+            appointmentData.patientEmail,
+            appointmentData.patientName || "Patient",
+            appointmentData.patientId,
+            appointmentData.date,
+            appointmentData.time,
+            servicePrice.basePrice,
+            cancellationFee,
+            `INV-${invoice.id?.slice(-8).toUpperCase()}`
+          );
+        }
+
+        return {
+          success: true,
+          invoiceId: invoice.id,
+          cancellationFee,
+        };
+      }
+    }
+
+    return { success: true };
   } catch (error) {
     console.error("Error cancelling appointment:", error);
     throw error;

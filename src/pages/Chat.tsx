@@ -66,15 +66,6 @@ const Chat = () => {
       lastMessage: "How can we help you today?",
       unread: 0,
     },
-    {
-      id: 3,
-      name: "Dr. Michael Chen",
-      role: "Specialist",
-      avatar: "MC",
-      online: false,
-      lastMessage: "See you at your next appointment",
-      unread: 0,
-    },
   ];
 
   // Initialize chat and fetch messages

@@ -16,6 +16,12 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./services/firebase-config";
+import {
+  sendPaymentSuccessEmail,
+  sendPaymentFailedEmail,
+  sendInvoiceCreatedEmail,
+  sendCancellationFeeEmail,
+} from "./services/email-service";
 
 // ============================================================
 // SERVICE PRICING CONFIGURATION
@@ -500,7 +506,8 @@ export const processCardPayment = async (
     expiryYear: string;
     cvv: string;
     cardholderName: string;
-  }
+  },
+  patientEmail: string
 ): Promise<PaymentResult> => {
   try {
     // Validate card number
@@ -569,6 +576,16 @@ export const processCardPayment = async (
 
       await addDoc(collection(db, "payment_intents"), paymentIntentData);
 
+      // Send failure email
+      await sendPaymentFailedEmail(
+        patientEmail,
+        invoice.patientName,
+        invoice.patientId,
+        generateInvoiceNumber(),
+        invoice.amount,
+        "Payment declined by bank"
+      );
+
       return {
         success: false,
         message:
@@ -604,6 +621,17 @@ export const processCardPayment = async (
 
     // Get updated invoice
     const updatedInvoice = await getInvoice(invoiceId);
+
+    // Send success email
+    await sendPaymentSuccessEmail(
+      patientEmail,
+      invoice.patientName,
+      invoice.patientId,
+      generateInvoiceNumber(),
+      invoice.amount,
+      transactionId,
+      "Credit/Debit Card"
+    );
 
     return {
       success: true,
@@ -790,5 +818,90 @@ export const cancelInvoice = async (invoiceId: string): Promise<boolean> => {
   } catch (error) {
     console.error("Error cancelling invoice:", error);
     return false;
+  }
+};
+
+/**
+ * Create cancellation fee invoice (10% of consultation fee)
+ */
+export const createCancellationFeeInvoice = async (
+  appointmentId: string,
+  patientId: string
+): Promise<Invoice> => {
+  try {
+    // Get appointment details
+    const appointmentRef = doc(db, "appointments", appointmentId);
+    const appointmentSnap = await getDoc(appointmentRef);
+
+    if (!appointmentSnap.exists()) {
+      throw new Error("Appointment not found");
+    }
+
+    const appointmentData = appointmentSnap.data();
+    const serviceType = appointmentData.type || appointmentData.serviceType;
+
+    // Get service pricing
+    const servicePrice = getServicePrice(serviceType);
+
+    if (!servicePrice) {
+      throw new Error(`Service pricing not found for: ${serviceType}`);
+    }
+
+    // Calculate 10% cancellation fee
+    const cancellationFeeAmount = servicePrice.basePrice * 0.1;
+
+    // Create invoice service item
+    const invoiceService: InvoiceService = {
+      serviceId: "cancellation_fee",
+      serviceName: `Cancellation Fee (10% of ${servicePrice.name})`,
+      price: cancellationFeeAmount,
+      quantity: 1,
+      total: cancellationFeeAmount,
+    };
+
+    // Get patient details
+    const patientRef = doc(db, "patients", patientId);
+    const patientSnap = await getDoc(patientRef);
+    const patientName = patientSnap.exists()
+      ? patientSnap.data().name
+      : appointmentData.patientName || "Unknown Patient";
+
+    // Calculate dates
+    const now = new Date();
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 7); // 7 days payment term for cancellation fees
+
+    const invoiceData: Partial<Invoice> = {
+      patientId,
+      patientName,
+      amount: cancellationFeeAmount,
+      status: "pending",
+      date: now.toISOString().split("T")[0],
+      dueDate: dueDate.toISOString().split("T")[0],
+      services: [invoiceService],
+      description: `Cancellation Fee - Appointment on ${appointmentData.date} at ${appointmentData.time}`,
+      appointmentId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    // Save invoice to Firestore
+    const invoicesRef = collection(db, "invoices");
+    const docRef = await addDoc(invoicesRef, invoiceData);
+
+    // Update appointment with cancellation fee invoice reference
+    await updateDoc(appointmentRef, {
+      cancellationFeeInvoiceId: docRef.id,
+      cancellationFeeApplied: true,
+      cancellationFeeAmount,
+    });
+
+    return {
+      id: docRef.id,
+      ...invoiceData,
+    } as Invoice;
+  } catch (error) {
+    console.error("Error creating cancellation fee invoice:", error);
+    throw error;
   }
 };

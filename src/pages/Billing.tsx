@@ -8,26 +8,503 @@ import {
   IconDollarSign,
   IconTrendingUp,
   IconFileText,
+  IconX,
+  IconBuilding,
+  IconCash,
 } from "../components/Icons";
 import { useAuth } from "../contexts/AuthContext";
 import {
   getPatientInvoices,
-  getPendingInvoices,
-  updateInvoiceStatus,
-  Invoice as FirebaseInvoice,
-} from "../services/database-service";
+  processCardPayment,
+  Invoice as BillingInvoice,
+} from "../billing-service";
 
-interface Invoice {
-  id?: string;
+interface Invoice extends BillingInvoice {
   invoiceNumber?: string;
-  date: string;
-  dueDate?: string;
   service?: string;
-  amount: number;
-  status: "Paid" | "Pending" | "Overdue";
-  patientId?: string;
-  patientName?: string;
 }
+
+interface PaymentModalProps {
+  invoice: Invoice | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+interface PaymentModalProps {
+  invoice: Invoice | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+const PaymentModal: React.FC<PaymentModalProps> = ({
+  invoice,
+  onClose,
+  onSuccess,
+}) => {
+  const { user, showToast } = useAuth();
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "eft" | "cash">(
+    "card"
+  );
+  const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  // Card details
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [expiryMonth, setExpiryMonth] = useState("");
+  const [expiryYear, setExpiryYear] = useState("");
+  const [cvv, setCvv] = useState("");
+
+  // EFT details
+  const [accountHolder, setAccountHolder] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [branchCode, setBranchCode] = useState("");
+
+  // Cash details
+  const [cashAmount, setCashAmount] = useState("");
+
+  if (!invoice) return null;
+
+  const formatCardNumber = (value: string) => {
+    const cleaned = value.replace(/\s+/g, "");
+    const chunks = cleaned.match(/.{1,4}/g) || [];
+    return chunks.join(" ");
+  };
+
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\s+/g, "");
+    if (value.length <= 16 && /^\d*$/.test(value)) {
+      setCardNumber(value);
+    }
+  };
+
+  const handleProcessPayment = async () => {
+    if (!invoice.id || !user?.email) return;
+
+    setProcessing(true);
+    setProgress(0);
+
+    try {
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      if (paymentMethod === "card") {
+        // Validate card fields
+        if (!cardNumber || !cardName || !expiryMonth || !expiryYear || !cvv) {
+          showToast("Please fill in all card details", "error");
+          setProcessing(false);
+          clearInterval(progressInterval);
+          return;
+        }
+
+        const result = await processCardPayment(
+          invoice.id,
+          {
+            cardNumber,
+            expiryMonth,
+            expiryYear,
+            cvv,
+            cardholderName: cardName,
+          },
+          user.email
+        );
+
+        clearInterval(progressInterval);
+        setProgress(100);
+
+        if (result.success) {
+          showToast(
+            `✅ Payment successful! Confirmation email sent to ${user.email}`,
+            "success"
+          );
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 1000);
+        } else {
+          showToast(result.message, "error");
+          setProcessing(false);
+          setProgress(0);
+        }
+      } else if (paymentMethod === "eft") {
+        // Validate EFT fields
+        if (!accountHolder || !accountNumber || !bankName || !branchCode) {
+          showToast("Please fill in all EFT details", "error");
+          setProcessing(false);
+          clearInterval(progressInterval);
+          return;
+        }
+
+        clearInterval(progressInterval);
+        setProgress(100);
+
+        showToast(
+          "EFT payment initiated. Please allow 1-3 business days for processing.",
+          "success"
+        );
+        setTimeout(() => {
+          onClose();
+        }, 2000);
+      } else if (paymentMethod === "cash") {
+        if (!cashAmount || parseFloat(cashAmount) < invoice.amount) {
+          showToast("Insufficient cash amount", "error");
+          setProcessing(false);
+          clearInterval(progressInterval);
+          return;
+        }
+
+        clearInterval(progressInterval);
+        setProgress(100);
+
+        showToast("Cash payment recorded successfully", "success");
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      showToast("Payment processing failed. Please try again.", "error");
+      setProcessing(false);
+      setProgress(0);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-scale-in">
+        {/* Header */}
+        <div className="sticky top-0 bg-gradient-to-r from-brand-teal to-brand-dark text-white p-6 flex items-center justify-between rounded-t-2xl">
+          <div>
+            <h2 className="text-2xl font-bold">Payment Gateway</h2>
+            <p className="text-white/80 mt-1">
+              Secure payment processing for Invoice #{invoice.id?.slice(-8)}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            disabled={processing}
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <IconX className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Invoice Summary */}
+          <div className="bg-gradient-to-br from-brand-light to-white border border-brand-teal/20 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-gray-600 font-medium">Amount Due:</span>
+              <span className="text-3xl font-bold text-brand-dark">
+                R{invoice.amount.toFixed(2)}
+              </span>
+            </div>
+            <div className="text-sm text-gray-600">
+              <p>
+                <strong>Service:</strong>{" "}
+                {invoice.description || invoice.service || "Medical Services"}
+              </p>
+              <p>
+                <strong>Date:</strong>{" "}
+                {new Date(invoice.date).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+
+          {/* Payment Method Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Select Payment Method
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { id: "card", icon: IconCreditCard, label: "Card" },
+                { id: "eft", icon: IconBuilding, label: "EFT" },
+                { id: "cash", icon: IconCash, label: "Cash" },
+              ].map((method) => (
+                <button
+                  key={method.id}
+                  onClick={() =>
+                    setPaymentMethod(method.id as "card" | "eft" | "cash")
+                  }
+                  disabled={processing}
+                  className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                    paymentMethod === method.id
+                      ? "border-brand-teal bg-brand-light text-brand-teal shadow-lg"
+                      : "border-gray-200 hover:border-brand-teal/50"
+                  } disabled:opacity-50`}
+                >
+                  <method.icon className="w-8 h-8 mx-auto mb-2" />
+                  <span className="text-sm font-semibold">{method.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Card Payment Form */}
+          {paymentMethod === "card" && (
+            <div className="space-y-4 animate-fade-in">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Card Number
+                </label>
+                <input
+                  type="text"
+                  value={formatCardNumber(cardNumber)}
+                  onChange={handleCardNumberChange}
+                  placeholder="1234 5678 9012 3456"
+                  disabled={processing}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:bg-gray-100 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Cardholder Name
+                </label>
+                <input
+                  type="text"
+                  value={cardName}
+                  onChange={(e) => setCardName(e.target.value)}
+                  placeholder="John Doe"
+                  disabled={processing}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:bg-gray-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Month
+                  </label>
+                  <input
+                    type="text"
+                    value={expiryMonth}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^\d{0,2}$/.test(val) && parseInt(val || "0") <= 12) {
+                        setExpiryMonth(val);
+                      }
+                    }}
+                    placeholder="MM"
+                    disabled={processing}
+                    maxLength={2}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:bg-gray-100 text-center font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Year
+                  </label>
+                  <input
+                    type="text"
+                    value={expiryYear}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^\d{0,2}$/.test(val)) {
+                        setExpiryYear(val);
+                      }
+                    }}
+                    placeholder="YY"
+                    disabled={processing}
+                    maxLength={2}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:bg-gray-100 text-center font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    CVV
+                  </label>
+                  <input
+                    type="text"
+                    value={cvv}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^\d{0,4}$/.test(val)) {
+                        setCvv(val);
+                      }
+                    }}
+                    placeholder="123"
+                    disabled={processing}
+                    maxLength={4}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:bg-gray-100 text-center font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* EFT Payment Form */}
+          {paymentMethod === "eft" && (
+            <div className="space-y-4 animate-fade-in">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Account Holder Name
+                </label>
+                <input
+                  type="text"
+                  value={accountHolder}
+                  onChange={(e) => setAccountHolder(e.target.value)}
+                  placeholder="John Doe"
+                  disabled={processing}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:bg-gray-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Account Number
+                </label>
+                <input
+                  type="text"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder="1234567890"
+                  disabled={processing}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:bg-gray-100 font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Bank Name
+                  </label>
+                  <input
+                    type="text"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    placeholder="Standard Bank"
+                    disabled={processing}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Branch Code
+                  </label>
+                  <input
+                    type="text"
+                    value={branchCode}
+                    onChange={(e) => setBranchCode(e.target.value)}
+                    placeholder="051001"
+                    disabled={processing}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:bg-gray-100 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> EFT payments typically take 1-3
+                  business days to process. You will receive a confirmation
+                  email once the payment is verified.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Cash Payment Form */}
+          {paymentMethod === "cash" && (
+            <div className="space-y-4 animate-fade-in">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Cash Amount (R)
+                </label>
+                <input
+                  type="number"
+                  value={cashAmount}
+                  onChange={(e) => setCashAmount(e.target.value)}
+                  placeholder={invoice.amount.toFixed(2)}
+                  disabled={processing}
+                  min={invoice.amount}
+                  step="0.01"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:bg-gray-100 font-mono text-lg"
+                />
+              </div>
+
+              {cashAmount && parseFloat(cashAmount) > invoice.amount && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-sm text-green-800">
+                    <strong>Change Due:</strong> R
+                    {(parseFloat(cashAmount) - invoice.amount).toFixed(2)}
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> Cash payments must be made in person at
+                  our clinic. This form records the payment for our records.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Progress Bar */}
+          {processing && (
+            <div className="space-y-2 animate-fade-in">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Processing payment...</span>
+                <span className="font-semibold text-brand-teal">
+                  {progress}%
+                </span>
+              </div>
+              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-brand-teal to-brand-dark transition-all duration-300 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={onClose}
+              disabled={processing}
+              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleProcessPayment}
+              disabled={processing}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-brand-teal to-brand-dark text-white rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all disabled:opacity-50 disabled:transform-none flex items-center justify-center gap-2"
+            >
+              {processing ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <IconCheck className="w-5 h-5" />
+                  Pay R{invoice.amount.toFixed(2)}
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Security Notice */}
+          <div className="text-center text-xs text-gray-500 pt-2">
+            🔒 Secure payment processing powered by Dermaglare Payment Gateway
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface PaymentMethod {
   id: number;
@@ -39,87 +516,44 @@ interface PaymentMethod {
 
 const Billing = () => {
   const { user, showToast } = useAuth();
-  const [selectedTab, setSelectedTab] = useState<"invoices" | "payments">(
+  const [selectedTab, setSelectedTab] = useState<"invoices" | "history">(
     "invoices"
   );
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Fetch invoices from Firebase
+  const fetchInvoices = async () => {
+    if (!user?.uid) return;
+
+    try {
+      setLoading(true);
+      const fetchedInvoices = await getPatientInvoices(user.uid);
+
+      // Transform invoices to include invoice number
+      const transformedInvoices = fetchedInvoices.map((inv) => ({
+        ...inv,
+        invoiceNumber: `INV-${inv.id?.slice(-8).toUpperCase()}`,
+        service:
+          inv.description ||
+          inv.services?.[0]?.serviceName ||
+          "Medical Service",
+      }));
+
+      setInvoices(transformedInvoices);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching invoices:", error);
+      showToast("Failed to load invoices", "error");
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchInvoices = async () => {
-      if (!user?.uid) return;
-
-      try {
-        setLoading(true);
-        const fetchedInvoices = await getPatientInvoices(user.uid);
-        setInvoices(fetchedInvoices);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching invoices:", error);
-        showToast("Failed to load invoices", "error");
-        setLoading(false);
-      }
-    };
-
     fetchInvoices();
   }, [user]);
-
-  const [mockInvoices] = useState<Invoice[]>([
-    {
-      id: "1",
-      invoiceNumber: "INV-2024-001",
-      date: "2024-10-28",
-      dueDate: "2024-11-28",
-      service: "Annual Skin Checkup",
-      amount: 250.0,
-      status: "Paid",
-    },
-    {
-      id: "2",
-      invoiceNumber: "INV-2024-002",
-      date: "2024-10-20",
-      dueDate: "2024-11-20",
-      service: "Laser Treatment Session",
-      amount: 450.0,
-      status: "Pending",
-    },
-    {
-      id: "3",
-      invoiceNumber: "INV-2024-003",
-      date: "2024-09-15",
-      dueDate: "2024-10-15",
-      service: "Consultation",
-      amount: 150.0,
-      status: "Overdue",
-    },
-    {
-      id: "4",
-      invoiceNumber: "INV-2024-004",
-      date: "2024-09-01",
-      dueDate: "2024-10-01",
-      service: "Acne Treatment",
-      amount: 320.0,
-      status: "Paid",
-    },
-  ]);
-
-  const paymentMethods: PaymentMethod[] = [
-    {
-      id: 1,
-      type: "Visa",
-      last4: "4242",
-      expiry: "12/25",
-      isDefault: true,
-    },
-    {
-      id: 2,
-      type: "Mastercard",
-      last4: "8888",
-      expiry: "08/26",
-      isDefault: false,
-    },
-  ];
 
   const getStatusColor = (status: string) => {
     const normalizedStatus = status.toLowerCase();
@@ -130,6 +564,8 @@ const Billing = () => {
         return "from-yellow-500 to-orange-600";
       case "overdue":
         return "from-red-500 to-rose-600";
+      case "cancelled":
+        return "from-gray-500 to-slate-600";
       default:
         return "from-gray-500 to-slate-600";
     }
@@ -144,6 +580,8 @@ const Billing = () => {
         return <IconClock className="w-5 h-5" />;
       case "overdue":
         return <IconAlertCircle className="w-5 h-5" />;
+      case "cancelled":
+        return <IconX className="w-5 h-5" />;
       default:
         return null;
     }
@@ -162,21 +600,54 @@ const Billing = () => {
     )
     .reduce((sum, inv) => sum + inv.amount, 0);
 
-  // Handle payment
-  const handlePayInvoice = async (invoiceId: string) => {
-    try {
-      await updateInvoiceStatus(invoiceId, "Paid");
-      showToast("Payment processed successfully!", "success");
+  // Calculate this month total
+  const thisMonth = invoices
+    .filter((inv) => {
+      const invDate = new Date(inv.date);
+      const now = new Date();
+      return (
+        invDate.getMonth() === now.getMonth() &&
+        invDate.getFullYear() === now.getFullYear()
+      );
+    })
+    .reduce((sum, inv) => sum + inv.amount, 0);
 
-      // Refresh invoices
-      if (user?.uid) {
-        const fetchedInvoices = await getPatientInvoices(user.uid);
-        setInvoices(fetchedInvoices);
-      }
-    } catch (error) {
-      console.error("Error processing payment:", error);
-      showToast("Failed to process payment", "error");
+  const handlePayInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    fetchInvoices();
+  };
+
+  const handleDownloadInvoice = (invoice: Invoice) => {
+    // Simulate invoice download
+    const invoiceData = `
+DERMAGLARE SKIN & LASER CLINIC
+Invoice: ${invoice.invoiceNumber}
+Date: ${new Date(invoice.date).toLocaleDateString()}
+Due Date: ${
+      invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : "N/A"
     }
+
+Patient: ${invoice.patientName}
+Service: ${invoice.service}
+Amount: R${invoice.amount.toFixed(2)}
+Status: ${invoice.status}
+
+Thank you for choosing Dermaglare!
+    `.trim();
+
+    const blob = new Blob([invoiceData], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${invoice.invoiceNumber}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showToast("Invoice downloaded successfully", "success");
   };
 
   return (
@@ -189,13 +660,9 @@ const Billing = () => {
               Billing & Payments
             </h1>
             <p className="text-gray-600 text-lg">
-              Manage your invoices and payment methods
+              Manage your invoices and make secure payments
             </p>
           </div>
-          <button className="bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 animate-scale-in">
-            <IconCreditCard className="w-5 h-5" />
-            Add Payment Method
-          </button>
         </div>
 
         {/* Tab Navigation */}
@@ -214,14 +681,14 @@ const Billing = () => {
             Invoices
           </button>
           <button
-            onClick={() => setSelectedTab("payments")}
+            onClick={() => setSelectedTab("history")}
             className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-              selectedTab === "payments"
+              selectedTab === "history"
                 ? "bg-gradient-to-r from-brand-teal to-brand-dark text-white shadow-lg"
                 : "bg-white text-gray-700 hover:bg-gray-50 shadow"
             }`}
           >
-            Payment Methods
+            Payment History
           </button>
         </div>
       </div>
@@ -270,7 +737,7 @@ const Billing = () => {
               <stat.icon className="w-6 h-6 text-white" />
             </div>
             <div className="text-3xl font-bold text-gray-800 mb-1">
-              {stat.isCount ? stat.amount : `$${stat.amount.toFixed(2)}`}
+              {stat.isCount ? stat.amount : `R${stat.amount.toFixed(2)}`}
             </div>
             <div className="text-gray-600 font-medium">{stat.label}</div>
           </div>
@@ -333,7 +800,7 @@ const Billing = () => {
                               <p className="text-gray-500 mb-1">Invoice Date</p>
                               <p className="font-semibold text-gray-800">
                                 {new Date(invoice.date).toLocaleDateString(
-                                  "en-US",
+                                  "en-ZA",
                                   {
                                     year: "numeric",
                                     month: "short",
@@ -348,7 +815,7 @@ const Billing = () => {
                                 {invoice.dueDate
                                   ? new Date(
                                       invoice.dueDate
-                                    ).toLocaleDateString("en-US", {
+                                    ).toLocaleDateString("en-ZA", {
                                       year: "numeric",
                                       month: "short",
                                       day: "numeric",
@@ -359,7 +826,7 @@ const Billing = () => {
                             <div>
                               <p className="text-gray-500 mb-1">Amount</p>
                               <p className="font-bold text-2xl text-gray-800">
-                                ${invoice.amount.toFixed(2)}
+                                R{invoice.amount.toFixed(2)}
                               </p>
                             </div>
                           </div>
@@ -378,14 +845,18 @@ const Billing = () => {
                           </div>
 
                           <div className="flex gap-2">
-                            <button className="px-4 py-2 bg-brand-light text-brand-teal rounded-lg hover:bg-brand-teal hover:text-white font-semibold transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
+                            <button
+                              onClick={() => handleDownloadInvoice(invoice)}
+                              className="px-4 py-2 bg-brand-light text-brand-teal rounded-lg hover:bg-brand-teal hover:text-white font-semibold transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                            >
                               <IconDownload className="w-4 h-4" />
                               Download
                             </button>
                             {invoice.status.toLowerCase() !== "paid" &&
+                              invoice.status.toLowerCase() !== "cancelled" &&
                               invoice.id && (
                                 <button
-                                  onClick={() => handlePayInvoice(invoice.id!)}
+                                  onClick={() => handlePayInvoice(invoice)}
                                   className="px-4 py-2 bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark rounded-lg font-semibold transform hover:scale-105 transition-all duration-300"
                                 >
                                   Pay Now
@@ -403,68 +874,68 @@ const Billing = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Payment Methods */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {paymentMethods.map((method, index) => (
-              <div
-                key={method.id}
-                className="group bg-gradient-to-br from-brand-teal to-brand-dark rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:scale-105 animate-scale-in"
-                style={{ animationDelay: `${0.6 + index * 0.1}s` }}
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                    <IconCreditCard className="w-7 h-7 text-white" />
-                  </div>
-                  {method.isDefault && (
-                    <span className="px-3 py-1 bg-brand-yellow text-brand-dark rounded-full text-xs font-bold">
-                      Default
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-white mb-6">
-                  <p className="text-sm opacity-80 mb-2">{method.type}</p>
-                  <p className="text-2xl font-bold tracking-wider mb-4">
-                    •••• •••• •••• {method.last4}
-                  </p>
-                  <div className="flex items-center gap-6 text-sm">
-                    <div>
-                      <p className="opacity-60 mb-1">Expires</p>
-                      <p className="font-semibold">{method.expiry}</p>
+          {/* Payment History */}
+          <div className="bg-white rounded-2xl p-8 shadow-lg">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">
+              Payment History
+            </h2>
+            {invoices.filter((inv) => inv.status.toLowerCase() === "paid")
+              .length === 0 ? (
+              <div className="text-center py-12">
+                <IconDollarSign className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No payment history yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {invoices
+                  .filter((inv) => inv.status.toLowerCase() === "paid")
+                  .map((invoice) => (
+                    <div
+                      key={invoice.id}
+                      className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-xl hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
+                          <IconCheck className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800">
+                            {invoice.invoiceNumber}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {invoice.service}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(invoice.date).toLocaleDateString("en-ZA")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-xl text-green-600">
+                          R{invoice.amount.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {invoice.paymentMethod || "Card"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  {!method.isDefault && (
-                    <button className="flex-1 bg-white/20 hover:bg-white/30 text-white py-2 rounded-lg font-semibold transition-all duration-300">
-                      Set as Default
-                    </button>
-                  )}
-                  <button className="px-4 bg-red-500/20 hover:bg-red-500/30 text-white py-2 rounded-lg font-semibold transition-all duration-300">
-                    Remove
-                  </button>
-                </div>
+                  ))}
               </div>
-            ))}
-
-            {/* Add New Card */}
-            <div
-              className="group bg-white border-2 border-dashed border-gray-300 hover:border-brand-teal rounded-2xl p-6 flex items-center justify-center cursor-pointer transition-all duration-300 transform hover:scale-105 animate-scale-in"
-              style={{ animationDelay: "0.8s" }}
-            >
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-brand-teal to-brand-dark flex items-center justify-center group-hover:animate-pulse-glow">
-                  <IconCreditCard className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
-                  Add New Card
-                </h3>
-                <p className="text-gray-600">Add a new payment method</p>
-              </div>
-            </div>
+            )}
           </div>
         </div>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <PaymentModal
+          invoice={selectedInvoice}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedInvoice(null);
+          }}
+          onSuccess={handlePaymentSuccess}
+        />
       )}
     </div>
   );
