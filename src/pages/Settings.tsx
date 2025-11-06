@@ -15,6 +15,7 @@ import {
   IconCheck,
 } from "../components/Icons";
 import { useAuth } from "../contexts/AuthContext";
+import { useAppearance } from "../contexts/AppearanceContext";
 import {
   getPatientProfile,
   updatePatientProfile,
@@ -38,6 +39,7 @@ interface ToggleSetting {
 
 const Settings = () => {
   const { user, showToast, logout } = useAuth();
+  const { appearance, setAppearance } = useAppearance();
   const [loading, setLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -98,12 +100,6 @@ const Settings = () => {
     },
   ]);
 
-  const [appearance, setAppearance] = useState({
-    theme: "light",
-    language: "English",
-    fontSize: "medium",
-  });
-
   // Load settings from Firebase
   useEffect(() => {
     const loadSettings = async () => {
@@ -120,11 +116,6 @@ const Settings = () => {
         // Load privacy preferences if they exist
         if (profile?.settings?.privacy) {
           setPrivacy(profile.settings.privacy);
-        }
-
-        // Load appearance preferences if they exist
-        if (profile?.settings?.appearance) {
-          setAppearance(profile.settings.appearance);
         }
       } catch (error) {
         console.error("Error loading settings:", error);
@@ -174,6 +165,50 @@ const Settings = () => {
     );
     // Auto-save after a short delay
     setTimeout(saveSettings, 500);
+  };
+
+  // Handle theme change with instant update and save
+  const handleThemeChange = async (theme: "light" | "dark" | "auto") => {
+    const newAppearance = { ...appearance, theme };
+    setAppearance(newAppearance);
+
+    // Save to Firebase
+    try {
+      if (user?.uid) {
+        await updatePatientProfile(user.uid, {
+          settings: {
+            notifications,
+            privacy,
+            appearance: newAppearance,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error saving theme:", error);
+    }
+  };
+
+  // Handle font size change with instant update and save
+  const handleFontSizeChange = async (
+    fontSize: "small" | "medium" | "large"
+  ) => {
+    const newAppearance = { ...appearance, fontSize };
+    setAppearance(newAppearance);
+
+    // Save to Firebase
+    try {
+      if (user?.uid) {
+        await updatePatientProfile(user.uid, {
+          settings: {
+            notifications,
+            privacy,
+            appearance: newAppearance,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error saving font size:", error);
+    }
   };
 
   // Change Password Handler
@@ -526,10 +561,10 @@ const Settings = () => {
                   Theme
                 </label>
                 <div className="grid grid-cols-3 gap-3">
-                  {["light", "dark", "auto"].map((theme) => (
+                  {(["light", "dark", "auto"] as const).map((theme) => (
                     <button
                       key={theme}
-                      onClick={() => setAppearance({ ...appearance, theme })}
+                      onClick={() => handleThemeChange(theme)}
                       className={`p-3 rounded-xl border-2 font-semibold transition-all duration-300 transform hover:scale-105 ${
                         appearance.theme === theme
                           ? "border-brand-teal bg-brand-light text-brand-teal"
@@ -550,12 +585,10 @@ const Settings = () => {
                   Font Size
                 </label>
                 <div className="grid grid-cols-3 gap-3">
-                  {["small", "medium", "large"].map((size) => (
+                  {(["small", "medium", "large"] as const).map((size) => (
                     <button
                       key={size}
-                      onClick={() =>
-                        setAppearance({ ...appearance, fontSize: size })
-                      }
+                      onClick={() => handleFontSizeChange(size)}
                       className={`p-3 rounded-xl border-2 font-semibold transition-all duration-300 transform hover:scale-105 ${
                         appearance.fontSize === size
                           ? "border-brand-teal bg-brand-light text-brand-teal"
