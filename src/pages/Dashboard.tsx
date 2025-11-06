@@ -17,6 +17,7 @@ import {
   getPatientAppointments,
   getPatientDocuments,
   Appointment,
+  Document,
 } from "../services/database-service";
 
 interface StatCardProps {
@@ -26,6 +27,7 @@ interface StatCardProps {
   trend?: string;
   color: string;
   delay: number;
+  onClick?: () => void;
 }
 
 const StatCard: React.FC<StatCardProps> = ({
@@ -35,6 +37,7 @@ const StatCard: React.FC<StatCardProps> = ({
   trend,
   color,
   delay,
+  onClick,
 }) => {
   const [count, setCount] = useState(0);
   const targetValue = typeof value === "number" ? value : 0;
@@ -64,6 +67,7 @@ const StatCard: React.FC<StatCardProps> = ({
     <div
       className="group animate-scale-in"
       style={{ animationDelay: `${delay}ms` }}
+      onClick={onClick}
     >
       <Card className="relative overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer border-2 border-transparent hover:border-brand-yellow/50">
         {/* Animated gradient background */}
@@ -104,8 +108,20 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [timeOfDay, setTimeOfDay] = useState("");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [documentCount, setDocumentCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [recentActivity, setRecentActivity] = useState<
+    Array<{
+      id: string;
+      action: string;
+      detail: string;
+      time: string;
+      icon: React.ReactNode;
+      color: string;
+      onClick: () => void;
+    }>
+  >([]);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -127,7 +143,65 @@ const Dashboard = () => {
 
         // Fetch documents
         const documentsData = await getPatientDocuments(user.uid);
+        setDocuments(documentsData);
         setDocumentCount(documentsData.length);
+
+        // Build recent activity from real data
+        const activities: Array<{
+          id: string;
+          action: string;
+          detail: string;
+          time: string;
+          icon: React.ReactNode;
+          color: string;
+          onClick: () => void;
+          timestamp: Date;
+        }> = [];
+
+        // Add recent documents
+        documentsData.slice(0, 2).forEach((doc) => {
+          const uploadDate = doc.uploadedAt
+            ? new Date(doc.uploadedAt)
+            : new Date();
+          activities.push({
+            id: doc.id || "",
+            action: "New document uploaded",
+            detail: doc.name,
+            time: getTimeAgo(uploadDate),
+            icon: <IconFileText className="w-5 h-5" />,
+            color: "bg-brand-yellow",
+            onClick: () => navigate("/documents"),
+            timestamp: uploadDate,
+          });
+        });
+
+        // Add recent appointments
+        appointmentsData
+          .filter((apt) => apt.status === "Confirmed")
+          .slice(0, 2)
+          .forEach((apt) => {
+            const aptDate = apt.createdAt
+              ? new Date(apt.createdAt)
+              : new Date();
+            activities.push({
+              id: apt.id || "",
+              action: "Appointment confirmed",
+              detail: `${apt.type} - ${new Date(
+                apt.date
+              ).toLocaleDateString()}`,
+              time: getTimeAgo(aptDate),
+              icon: <IconCheckCircle className="w-5 h-5" />,
+              color: "bg-green-500",
+              onClick: () => navigate("/appointments"),
+              timestamp: aptDate,
+            });
+          });
+
+        // Sort by most recent and take top 3
+        activities.sort(
+          (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+        );
+        setRecentActivity(activities.slice(0, 3));
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -136,7 +210,25 @@ const Dashboard = () => {
     };
 
     fetchData();
-  }, [user]);
+  }, [user, navigate]);
+
+  // Helper function to calculate time ago
+  const getTimeAgo = (date: Date): string => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+
+    if (seconds < 60) return "Just now";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60)
+      return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} ${days === 1 ? "day" : "days"} ago`;
+    const weeks = Math.floor(days / 7);
+    if (weeks < 4) return `${weeks} ${weeks === 1 ? "week" : "weeks"} ago`;
+    const months = Math.floor(days / 30);
+    return `${months} ${months === 1 ? "month" : "months"} ago`;
+  };
 
   // Calculate stats from real data
   const upcomingAppointments = appointments.filter(
@@ -156,24 +248,28 @@ const Dashboard = () => {
           ? `+${upcomingAppointments.length}`
           : undefined,
       color: "from-brand-teal to-brand-dark",
+      onClick: () => navigate("/appointments"),
     },
     {
       icon: <IconFileText className="w-8 h-8" />,
       label: "Documents",
       value: documentCount,
       color: "from-brand-yellow to-orange-400",
+      onClick: () => navigate("/documents"),
     },
     {
       icon: <IconMessageSquare className="w-8 h-8" />,
       label: "Unread Messages",
       value: 0, // TODO: Implement message count
       color: "from-purple-500 to-brand-teal",
+      onClick: () => navigate("/chat"),
     },
     {
       icon: <IconCheckCircle className="w-8 h-8" />,
       label: "Completed Visits",
       value: completedVisits,
       color: "from-green-500 to-brand-teal",
+      onClick: () => navigate("/appointments"),
     },
   ];
 
@@ -208,33 +304,6 @@ const Dashboard = () => {
     };
   });
 
-  const recentActivity = [
-    {
-      id: 1,
-      action: "New document uploaded",
-      detail: "Lab Results - Blood Work",
-      time: "2 hours ago",
-      icon: <IconFileText className="w-5 h-5" />,
-      color: "bg-brand-yellow",
-    },
-    {
-      id: 2,
-      action: "Appointment confirmed",
-      detail: "Skin Consultation - Tomorrow",
-      time: "5 hours ago",
-      icon: <IconCheckCircle className="w-5 h-5" />,
-      color: "bg-green-500",
-    },
-    {
-      id: 3,
-      action: "New message received",
-      detail: "From Dr. Jabu Nkehli",
-      time: "1 day ago",
-      icon: <IconMessageSquare className="w-5 h-5" />,
-      color: "bg-brand-teal",
-    },
-  ];
-
   return (
     <div className="space-y-8">
       {/* Hero Section */}
@@ -248,24 +317,42 @@ const Dashboard = () => {
 
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 animate-slide-in-left">
-                {timeOfDay},{" "}
-                {user?.displayName || user?.email?.split("@")[0] || "there"}! 👋
-              </h1>
-              <p
-                className="text-brand-yellow text-lg animate-slide-in-left"
-                style={{ animationDelay: "0.1s" }}
-              >
-                Your skin health journey continues. You have 3 upcoming
-                appointments.
-              </p>
+            {/* Dermaglare Logo - Bigger and More Visible */}
+            <div className="flex items-center gap-6">
+              <img
+                src="https://dermaglare.co.za/wp-content/uploads/2023/10/Dermaglare-logo-website.webp"
+                alt="Dermaglare Logo"
+                className="h-24 w-auto object-contain animate-fade-in drop-shadow-2xl"
+              />
+              <div className="border-l-2 border-brand-yellow/50 pl-6">
+                <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 animate-slide-in-left flex items-center gap-3">
+                  {timeOfDay},{" "}
+                  {user?.displayName || user?.email?.split("@")[0] || "there"}!
+                  <span className="text-brand-yellow">✦</span>
+                </h1>
+                <p
+                  className="text-brand-yellow text-lg animate-slide-in-left"
+                  style={{ animationDelay: "0.1s" }}
+                >
+                  Your skin health journey continues.{" "}
+                  {upcomingAppointments.length > 0
+                    ? `You have ${upcomingAppointments.length} upcoming ${
+                        upcomingAppointments.length === 1
+                          ? "appointment"
+                          : "appointments"
+                      }.`
+                    : "Book your next appointment today."}
+                </p>
+              </div>
             </div>
             <div
               className="animate-scale-in"
               style={{ animationDelay: "0.2s" }}
             >
-              <Button className="bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark font-bold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
+              <Button
+                onClick={() => navigate("/appointments")}
+                className="bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark font-bold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+              >
                 <IconCalendar className="w-5 h-5 mr-2" />
                 Book Appointment
               </Button>
@@ -290,6 +377,7 @@ const Dashboard = () => {
               Upcoming Appointments
             </h2>
             <Button
+              onClick={() => navigate("/appointments")}
               variant="ghost"
               className="text-brand-teal hover:text-brand-dark"
             >
@@ -341,6 +429,7 @@ const Dashboard = () => {
                       </div>
 
                       <Button
+                        onClick={() => navigate("/appointments")}
                         size="sm"
                         className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-brand-teal to-brand-dark text-white"
                       >
@@ -366,31 +455,39 @@ const Dashboard = () => {
 
           <Card className="bg-gradient-to-br from-white to-brand-light/50 backdrop-blur-sm animate-scale-in">
             <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-4 p-3 rounded-xl hover:bg-white/60 transition-all duration-300 cursor-pointer group animate-slide-in-right"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity, index) => (
                   <div
-                    className={`${activity.color} p-2.5 rounded-xl text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}
+                    key={activity.id}
+                    onClick={activity.onClick}
+                    className="flex items-start gap-4 p-3 rounded-xl hover:bg-white/60 transition-all duration-300 cursor-pointer group animate-slide-in-right"
+                    style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    {activity.icon}
+                    <div
+                      className={`${activity.color} p-2.5 rounded-xl text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}
+                    >
+                      {activity.icon}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-brand-dark group-hover:text-brand-teal transition-colors duration-300">
+                        {activity.action}
+                      </p>
+                      <p className="text-sm text-gray-600">{activity.detail}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {activity.time}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-brand-dark group-hover:text-brand-teal transition-colors duration-300">
-                      {activity.action}
-                    </p>
-                    <p className="text-sm text-gray-600">{activity.detail}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {activity.time}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">
+                  No recent activity
+                </p>
+              )}
             </div>
 
             <Button
+              onClick={() => navigate("/appointments")}
               variant="ghost"
               className="w-full mt-4 text-brand-teal hover:text-brand-dark"
             >
@@ -412,25 +509,30 @@ const Dashboard = () => {
                   label: "Book",
                   icon: <IconCalendar className="w-5 h-5" />,
                   color: "from-brand-teal to-brand-dark",
+                  onClick: () => navigate("/appointments"),
                 },
                 {
                   label: "Upload",
                   icon: <IconFileText className="w-5 h-5" />,
                   color: "from-brand-yellow to-orange-400",
+                  onClick: () => navigate("/documents"),
                 },
                 {
                   label: "Message",
                   icon: <IconMessageSquare className="w-5 h-5" />,
                   color: "from-purple-500 to-brand-teal",
+                  onClick: () => navigate("/chat"),
                 },
                 {
                   label: "History",
                   icon: <IconActivity className="w-5 h-5" />,
                   color: "from-green-500 to-brand-teal",
+                  onClick: () => navigate("/appointments"),
                 },
               ].map((action, index) => (
                 <button
                   key={action.label}
+                  onClick={action.onClick}
                   className={`p-4 rounded-xl bg-gradient-to-br ${action.color} text-white font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300 animate-scale-in`}
                   style={{ animationDelay: `${0.5 + index * 0.1}s` }}
                 >
