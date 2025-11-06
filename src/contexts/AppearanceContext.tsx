@@ -75,13 +75,13 @@ export const AppearanceProvider: React.FC<{ children: React.ReactNode }> = ({
     // Apply font size
     switch (appearance.fontSize) {
       case "small":
-        root.style.fontSize = "14px";
+        root.style.fontSize = "13px";
         break;
       case "medium":
-        root.style.fontSize = "16px";
+        root.style.fontSize = "14px";
         break;
       case "large":
-        root.style.fontSize = "18px";
+        root.style.fontSize = "15px";
         break;
     }
   }, [appearance]);

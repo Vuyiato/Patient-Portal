@@ -175,16 +175,18 @@ const SidebarLayout: React.FC<SidebarProps> = ({ children }) => {
       <div className="absolute bottom-0 w-full p-4 border-t border-white/10 bg-gradient-to-t from-black/20 to-transparent">
         {/* User Info */}
         {isSidebarOpen && user && (
-          <div className="mb-3 p-3 rounded-xl bg-white/5 backdrop-blur-sm animate-fade-in-up">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-yellow to-brand-teal flex items-center justify-center text-brand-dark font-bold shadow-lg">
+          <div className="mb-3 p-2.5 rounded-xl bg-white/5 backdrop-blur-sm animate-fade-in-up">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-yellow to-brand-teal flex items-center justify-center text-brand-dark font-bold shadow-lg flex-shrink-0">
                 {user.email?.charAt(0).toUpperCase() || "U"}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <p className="text-xs font-semibold text-white truncate leading-tight">
                   {user.displayName || "Patient"}
                 </p>
-                <p className="text-xs text-white/60 truncate">{user.email}</p>
+                <p className="text-[10px] text-white/60 truncate leading-tight">
+                  {user.email}
+                </p>
               </div>
             </div>
           </div>
@@ -193,12 +195,12 @@ const SidebarLayout: React.FC<SidebarProps> = ({ children }) => {
         {/* Logout Button */}
         <button
           onClick={logout}
-          className="flex items-center p-3.5 w-full text-white/70 hover:bg-red-500/20 hover:text-red-300 rounded-xl transition-all duration-300 group relative overflow-hidden"
+          className="flex items-center p-2.5 w-full text-white/70 hover:bg-red-500/20 hover:text-red-300 rounded-xl transition-all duration-300 group relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/10 to-red-500/0 opacity-0 group-hover:opacity-100 animate-shimmer"></div>
-          <IconLogOut className="w-6 h-6 relative z-10 transform group-hover:scale-110 transition-transform duration-300" />
+          <IconLogOut className="w-5 h-5 relative z-10 transform group-hover:scale-110 transition-transform duration-300" />
           <span
-            className={`ml-4 font-semibold whitespace-nowrap transition-all duration-500 relative z-10 ${
+            className={`ml-3 font-semibold text-sm whitespace-nowrap transition-all duration-500 relative z-10 ${
               isSidebarOpen
                 ? "opacity-100 translate-x-0"
                 : "opacity-0 -translate-x-4"
