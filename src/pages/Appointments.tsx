@@ -116,6 +116,10 @@ const Appointments = () => {
   const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    console.log("=== Booking Appointment ===");
+    console.log("User:", user);
+    console.log("Form data:", bookingForm);
+
     if (!user) {
       showToast("Please login to book an appointment", "error");
       return;
@@ -123,6 +127,7 @@ const Appointments = () => {
 
     // Validate form
     if (!bookingForm.date || !bookingForm.time || !bookingForm.type) {
+      console.log("Validation failed - missing fields");
       showToast("Please fill in all required fields", "error");
       return;
     }
@@ -143,11 +148,16 @@ const Appointments = () => {
         notes: bookingForm.notes,
       };
 
+      console.log("Appointment data to save:", appointmentData);
+
       // Book appointment in Firebase
-      await bookAppointment(appointmentData);
+      const appointmentId = await bookAppointment(appointmentData);
+      console.log("Appointment booked with ID:", appointmentId);
 
       // Refresh appointments list
       const data = await getPatientAppointments(user.uid);
+      console.log("Fetched appointments:", data);
+
       const transformedData: Appointment[] = data.map((apt) => {
         let status: "upcoming" | "completed" | "cancelled" = "upcoming";
         if (apt.status === "Completed") status = "completed";
@@ -166,6 +176,7 @@ const Appointments = () => {
         };
       });
 
+      console.log("Transformed appointments:", transformedData);
       setAppointments(transformedData);
 
       // Reset form and close modal
@@ -182,7 +193,7 @@ const Appointments = () => {
       showToast("Appointment booked successfully! 🎉", "success");
     } catch (error) {
       console.error("Error booking appointment:", error);
-      showToast("Failed to book appointment", "error");
+      showToast(`Failed to book appointment: ${error}`, "error");
       setBookingLoading(false);
     }
   };

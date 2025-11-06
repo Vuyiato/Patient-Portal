@@ -109,13 +109,19 @@ export const bookAppointment = async (
   appointmentData: Omit<Appointment, "id">
 ): Promise<string> => {
   try {
+    console.log("bookAppointment called with:", appointmentData);
+    console.log("Firebase db instance:", db);
+
     const docRef = await addDoc(collection(db, "appointments"), {
       ...appointmentData,
       createdAt: serverTimestamp(),
     });
+
+    console.log("Document created with ID:", docRef.id);
     return docRef.id;
   } catch (error) {
     console.error("Error booking appointment:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     throw error;
   }
 };
