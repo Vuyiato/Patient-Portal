@@ -40,7 +40,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "consultation",
     name: "Standard Consultation",
-    basePrice: 999,
+    basePrice: 1300,
     duration: "30 min",
     description: "Comprehensive skin assessment and treatment plan",
     category: "medical",
@@ -48,7 +48,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "medical_dermatology",
     name: "Medical Dermatology",
-    basePrice: 500,
+    basePrice: 1500,
     duration: "30 min",
     description: "Treatment of skin conditions",
     category: "medical",
@@ -56,7 +56,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "cosmetic_dermatology",
     name: "Cosmetic Dermatology",
-    basePrice: 600,
+    basePrice: 1600,
     duration: "30-60 min",
     description: "Aesthetic treatments and procedures",
     category: "cosmetic",
@@ -64,7 +64,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "laser_treatment",
     name: "Laser Treatment",
-    basePrice: 1500,
+    basePrice: 3500,
     duration: "45-60 min",
     description: "Advanced laser procedures",
     category: "cosmetic",
@@ -72,7 +72,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "chemical_peel",
     name: "Chemical Peel",
-    basePrice: 800,
+    basePrice: 1800,
     duration: "30-45 min",
     description: "Chemical peels for skin renewal",
     category: "cosmetic",
@@ -80,7 +80,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "microneedling",
     name: "Microneedling",
-    basePrice: 900,
+    basePrice: 1900,
     duration: "45 min",
     description: "Collagen induction therapy",
     category: "cosmetic",
@@ -88,7 +88,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "botox",
     name: "Botox Injections",
-    basePrice: 2500,
+    basePrice: 4500,
     duration: "20-30 min",
     description: "Anti-aging wrinkle treatment",
     category: "cosmetic",
@@ -96,7 +96,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "prp_therapy",
     name: "Platelet-Rich Plasma (PRP)",
-    basePrice: 1200,
+    basePrice: 3200,
     duration: "45-60 min",
     description: "PRP therapy for skin rejuvenation",
     category: "specialty",
@@ -104,7 +104,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "skin_tightening",
     name: "Skin Tightening",
-    basePrice: 1200,
+    basePrice: 2200,
     duration: "45-60 min",
     description: "Non-surgical skin firming",
     category: "cosmetic",
@@ -112,7 +112,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "mole_removal",
     name: "Mole Removal",
-    basePrice: 800,
+    basePrice: 1800,
     duration: "30 min",
     description: "Surgical removal of moles",
     category: "surgical",
@@ -120,7 +120,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "skin_cancer_screening",
     name: "Skin Cancer Screening",
-    basePrice: 750,
+    basePrice: 1750,
     duration: "30 min",
     description: "Comprehensive skin cancer examination",
     category: "medical",
@@ -128,7 +128,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "acne_treatment",
     name: "Acne Treatment",
-    basePrice: 650,
+    basePrice: 1650,
     duration: "30 min",
     description: "Specialized acne management",
     category: "medical",
@@ -136,7 +136,7 @@ export const SERVICE_PRICES: ServicePrice[] = [
   {
     id: "paediatric_dermatology",
     name: "Paediatric Dermatology",
-    basePrice: 450,
+    basePrice: 1450,
     duration: "30-45 min",
     description: "Specialized skin care for children",
     category: "specialty",

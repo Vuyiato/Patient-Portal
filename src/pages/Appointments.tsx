@@ -776,16 +776,39 @@ const Appointments = () => {
                   required
                 >
                   <option value="">Select appointment type</option>
-                  <option value="General Consultation">
-                    General Consultation
+                  <option value="Standard Consultation">
+                    Standard Consultation - R1,300
                   </option>
-                  <option value="Skin Checkup">Skin Checkup</option>
-                  <option value="Acne Treatment">Acne Treatment</option>
-                  <option value="Laser Treatment">Laser Treatment</option>
-                  <option value="Chemical Peel">Chemical Peel</option>
-                  <option value="Botox/Fillers">Botox/Fillers</option>
-                  <option value="Mole Removal">Mole Removal</option>
-                  <option value="Follow-up">Follow-up Visit</option>
+                  <option value="Medical Dermatology">
+                    Medical Dermatology - R1,500
+                  </option>
+                  <option value="Cosmetic Dermatology">
+                    Cosmetic Dermatology - R1,600
+                  </option>
+                  <option value="Laser Treatment">
+                    Laser Treatment - R3,500
+                  </option>
+                  <option value="Chemical Peel">Chemical Peel - R1,800</option>
+                  <option value="Microneedling">Microneedling - R1,900</option>
+                  <option value="Botox Injections">
+                    Botox Injections - R4,500
+                  </option>
+                  <option value="Platelet-Rich Plasma (PRP)">
+                    PRP Therapy - R3,200
+                  </option>
+                  <option value="Skin Tightening">
+                    Skin Tightening - R2,200
+                  </option>
+                  <option value="Mole Removal">Mole Removal - R1,800</option>
+                  <option value="Skin Cancer Screening">
+                    Skin Cancer Screening - R1,750
+                  </option>
+                  <option value="Acne Treatment">
+                    Acne Treatment - R1,650
+                  </option>
+                  <option value="Paediatric Dermatology">
+                    Paediatric Dermatology - R1,450
+                  </option>
                 </select>
               </div>
 
