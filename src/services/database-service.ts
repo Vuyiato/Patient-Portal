@@ -665,6 +665,7 @@ export interface Patient {
   medicalHistory?: string[];
   allergies?: string[];
   photoURL?: string;
+  settings?: any; // User preferences and settings
 }
 
 /**

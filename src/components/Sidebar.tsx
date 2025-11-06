@@ -6,8 +6,11 @@ import {
   IconSettings,
   IconLogOut,
   IconMenu,
-  DermагlareLogo,
   IconBell,
+  IconCalendar,
+  IconFileText,
+  IconMessageSquare,
+  IconCreditCard,
 } from "./Icons";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -24,76 +27,169 @@ const SidebarLayout: React.FC<SidebarProps> = ({ children }) => {
       to: "/dashboard",
       icon: <IconHome className="w-6 h-6" />,
       label: "Dashboard",
+      color: "from-brand-teal to-brand-dark",
+    },
+    {
+      to: "/appointments",
+      icon: <IconCalendar className="w-6 h-6" />,
+      label: "Appointments",
+      color: "from-brand-yellow to-brand-teal",
+    },
+    {
+      to: "/documents",
+      icon: <IconFileText className="w-6 h-6" />,
+      label: "Documents",
+      color: "from-brand-teal to-brand-yellow",
+    },
+    {
+      to: "/chat",
+      icon: <IconMessageSquare className="w-6 h-6" />,
+      label: "Chat",
+      color: "from-brand-dark to-brand-teal",
+    },
+    {
+      to: "/billing",
+      icon: <IconCreditCard className="w-6 h-6" />,
+      label: "Billing",
+      color: "from-brand-yellow to-brand-dark",
     },
     {
       to: "/profile",
       icon: <IconUser className="w-6 h-6" />,
       label: "Profile",
+      color: "from-brand-teal to-brand-yellow",
     },
     {
       to: "/settings",
       icon: <IconSettings className="w-6 h-6" />,
       label: "Settings",
+      color: "from-brand-dark to-brand-teal",
     },
   ];
 
   const Sidebar = () => (
     <div
-      className={`fixed top-0 left-0 h-full bg-gray-900 text-white transition-all duration-300 ease-in-out shadow-2xl ${
-        isSidebarOpen ? "w-64" : "w-20"
+      className={`fixed top-0 left-0 h-full bg-gradient-to-b from-brand-dark via-brand-teal to-brand-dark text-white transition-all duration-500 ease-in-out shadow-2xl z-50 ${
+        isSidebarOpen ? "w-72" : "w-20"
       }`}
     >
-      <div className="flex items-center justify-between p-4 h-20 border-b border-gray-800">
+      {/* Logo Section */}
+      <div className="flex items-center justify-between p-4 h-24 border-b border-white/10 relative overflow-hidden">
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-yellow/10 to-transparent animate-gradient-x"></div>
+
         <div
-          className={`flex items-center overflow-hidden transition-all duration-300 ${
-            isSidebarOpen ? "w-32" : "w-0"
+          className={`flex items-center overflow-hidden transition-all duration-500 relative z-10 ${
+            isSidebarOpen ? "w-full" : "w-0"
           }`}
         >
-          <DermагlareLogo />
+          <img
+            src="https://dermaglareskin.co.za/wp-content/uploads/2023/07/Dermaglare-Skin.png"
+            alt="Dermaglare Skin"
+            className="h-12 w-auto object-contain drop-shadow-lg"
+          />
         </div>
         <button
           onClick={() => setSidebarOpen(!isSidebarOpen)}
-          className="p-2 text-gray-400 hover:text-white focus:outline-none rounded-full hover:bg-gray-800"
+          className="p-2.5 text-brand-yellow hover:text-white focus:outline-none rounded-xl hover:bg-white/10 transition-all duration-300 relative z-10 group"
         >
-          <IconMenu className="w-6 h-6" />
+          <IconMenu className="w-6 h-6 transform group-hover:rotate-180 transition-transform duration-300" />
         </button>
       </div>
-      <nav className="mt-8">
-        <ul>
-          {navItems.map((item) => (
-            <li key={item.to} className="px-4 mb-2">
+
+      {/* Navigation */}
+      <nav className="mt-6 px-3">
+        <ul className="space-y-2">
+          {navItems.map((item, index) => (
+            <li
+              key={item.to}
+              className="animate-slide-in-left"
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
               <NavLink
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center p-3 rounded-lg transition-all duration-200 ease-in-out group ${
+                  `flex items-center p-3.5 rounded-xl transition-all duration-300 group relative overflow-hidden ${
                     isActive
-                      ? "bg-brand-500 text-white shadow-lg"
-                      : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                      ? "bg-gradient-to-r " +
+                        item.color +
+                        " text-white shadow-2xl shadow-brand-yellow/20 scale-105"
+                      : "text-white/70 hover:bg-white/10 hover:text-white hover:scale-105"
                   }`
                 }
               >
-                <div className="relative">{item.icon}</div>
-                <span
-                  className={`ml-4 font-medium whitespace-nowrap transition-all duration-300 ${
-                    isSidebarOpen ? "opacity-100" : "opacity-0 -translate-x-4"
-                  }`}
-                >
-                  {item.label}
-                </span>
+                {({ isActive }) => (
+                  <>
+                    {/* Animated background for active state */}
+                    {isActive && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 animate-shimmer"></div>
+                    )}
+
+                    {/* Icon with hover animation */}
+                    <div
+                      className={`relative transition-transform duration-300 ${
+                        isActive
+                          ? "animate-bounce-subtle"
+                          : "group-hover:scale-110"
+                      }`}
+                    >
+                      {item.icon}
+                    </div>
+
+                    {/* Label */}
+                    <span
+                      className={`ml-4 font-semibold whitespace-nowrap transition-all duration-500 relative ${
+                        isSidebarOpen
+                          ? "opacity-100 translate-x-0"
+                          : "opacity-0 -translate-x-4"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+
+                    {/* Active indicator */}
+                    {isActive && (
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-brand-yellow rounded-l-full animate-pulse"></div>
+                    )}
+                  </>
+                )}
               </NavLink>
             </li>
           ))}
         </ul>
       </nav>
-      <div className="absolute bottom-0 w-full p-4 border-t border-gray-800">
+
+      {/* User Section & Logout */}
+      <div className="absolute bottom-0 w-full p-4 border-t border-white/10 bg-gradient-to-t from-black/20 to-transparent">
+        {/* User Info */}
+        {isSidebarOpen && user && (
+          <div className="mb-3 p-3 rounded-xl bg-white/5 backdrop-blur-sm animate-fade-in-up">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-yellow to-brand-teal flex items-center justify-center text-brand-dark font-bold shadow-lg">
+                {user.email?.charAt(0).toUpperCase() || "U"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">
+                  {user.displayName || "Patient"}
+                </p>
+                <p className="text-xs text-white/60 truncate">{user.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Logout Button */}
         <button
           onClick={logout}
-          className="flex items-center p-3 w-full text-gray-400 hover:bg-red-700 hover:text-white rounded-lg transition-colors duration-200 group"
+          className="flex items-center p-3.5 w-full text-white/70 hover:bg-red-500/20 hover:text-red-300 rounded-xl transition-all duration-300 group relative overflow-hidden"
         >
-          <IconLogOut className="w-6 h-6" />
+          <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/10 to-red-500/0 opacity-0 group-hover:opacity-100 animate-shimmer"></div>
+          <IconLogOut className="w-6 h-6 relative z-10 transform group-hover:scale-110 transition-transform duration-300" />
           <span
-            className={`ml-4 font-medium whitespace-nowrap transition-all duration-300 ${
-              isSidebarOpen ? "opacity-100" : "opacity-0 -translate-x-4"
+            className={`ml-4 font-semibold whitespace-nowrap transition-all duration-500 relative z-10 ${
+              isSidebarOpen
+                ? "opacity-100 translate-x-0"
+                : "opacity-0 -translate-x-4"
             }`}
           >
             Logout
@@ -105,21 +201,31 @@ const SidebarLayout: React.FC<SidebarProps> = ({ children }) => {
 
   const Header = () => (
     <header
-      className={`fixed top-0 right-0 h-20 bg-gray-900/50 backdrop-blur-lg border-b border-gray-800 z-30 transition-all duration-300 ease-in-out ${
-        isSidebarOpen ? "left-64" : "left-20"
+      className={`fixed top-0 right-0 h-20 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 z-40 transition-all duration-500 ease-in-out shadow-lg ${
+        isSidebarOpen ? "left-72" : "left-20"
       }`}
     >
-      <div className="flex items-center justify-between h-full px-6">
-        <div className="text-white text-lg font-semibold">
-          Welcome, {user?.email || "Guest"}
+      <div className="flex items-center justify-between h-full px-8">
+        <div className="flex items-center space-x-4">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-brand-teal to-brand-dark bg-clip-text text-transparent">
+            Welcome Back!
+          </h2>
         </div>
-        <div className="flex items-center gap-4">
-          <button className="relative text-gray-400 hover:text-white">
+        <div className="flex items-center gap-6">
+          {/* Notifications */}
+          <button className="relative p-2.5 text-brand-dark hover:text-brand-teal transition-colors rounded-xl hover:bg-brand-teal/10 group">
             <IconBell className="w-6 h-6" />
-            <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+            <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white"></span>
           </button>
-          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold">
-            {user?.email ? user.email.charAt(0).toUpperCase() : "G"}
+
+          {/* User Avatar */}
+          <div className="flex items-center space-x-3 p-2 pr-4 rounded-full bg-gradient-to-r from-brand-teal/10 to-brand-yellow/10 hover:from-brand-teal/20 hover:to-brand-yellow/20 transition-all duration-300 cursor-pointer">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-yellow to-brand-teal flex items-center justify-center text-brand-dark font-bold shadow-lg">
+              {user?.email ? user.email.charAt(0).toUpperCase() : "G"}
+            </div>
+            <span className="text-sm font-semibold text-brand-dark">
+              {user?.email?.split("@")[0] || "Guest"}
+            </span>
           </div>
         </div>
       </div>
@@ -127,15 +233,15 @@ const SidebarLayout: React.FC<SidebarProps> = ({ children }) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-brand-light via-white to-brand-yellow/10">
       <Sidebar />
       <Header />
       <main
-        className={`flex-1 transition-all duration-300 ease-in-out pt-20 ${
-          isSidebarOpen ? "ml-64" : "ml-20"
+        className={`transition-all duration-500 ease-in-out pt-20 ${
+          isSidebarOpen ? "ml-72" : "ml-20"
         }`}
       >
-        <div className="p-8">{children}</div>
+        <div className="p-8 animate-fade-in-up">{children}</div>
       </main>
     </div>
   );
