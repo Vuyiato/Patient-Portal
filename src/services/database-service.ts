@@ -103,7 +103,7 @@ export const getUpcomingAppointments = async (
 };
 
 /**
- * Book a new appointment
+ * Book a new appointment and create associated invoice
  */
 export const bookAppointment = async (
   appointmentData: Omit<Appointment, "id">
@@ -112,12 +112,59 @@ export const bookAppointment = async (
     console.log("bookAppointment called with:", appointmentData);
     console.log("Firebase db instance:", db);
 
+    // Create appointment
     const docRef = await addDoc(collection(db, "appointments"), {
       ...appointmentData,
       createdAt: serverTimestamp(),
     });
 
     console.log("Document created with ID:", docRef.id);
+
+    // Import billing service dynamically to avoid circular dependency
+    const { getServicePrice } = await import("../billing-service");
+
+    // Get service price
+    const servicePrice = getServicePrice(appointmentData.type) || {
+      basePrice: 500,
+      name: appointmentData.type,
+    };
+
+    // Create invoice for the appointment
+    const invoiceData = {
+      patientId: appointmentData.patientId,
+      patientName: appointmentData.patientName,
+      patientEmail: appointmentData.patientEmail || "",
+      appointmentId: docRef.id,
+      amount: servicePrice.basePrice,
+      description: `${appointmentData.type} - ${appointmentData.doctorName}`,
+      service: appointmentData.type,
+      status: "Pending",
+      date: new Date().toISOString(),
+      dueDate: appointmentData.date, // Due on appointment date
+      invoiceNumber: `INV-${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 9)
+        .toUpperCase()}`,
+      createdAt: serverTimestamp(),
+    };
+
+    const invoiceRef = await addDoc(collection(db, "invoices"), invoiceData);
+    console.log("Invoice created with ID:", invoiceRef.id);
+
+    // Send invoice email notification
+    const { sendInvoiceCreatedEmail } = await import(
+      "../services/email-service"
+    );
+    await sendInvoiceCreatedEmail(
+      appointmentData.patientEmail || "",
+      appointmentData.patientName,
+      appointmentData.patientId,
+      invoiceData.invoiceNumber,
+      servicePrice.basePrice,
+      appointmentData.date,
+      [appointmentData.type]
+    );
+
     return docRef.id;
   } catch (error) {
     console.error("Error booking appointment:", error);
