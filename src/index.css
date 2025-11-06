@@ -1,3 +1,48 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  /* Optimize all hover scale transforms to be more subtle */
+  .hover\:scale-105:hover {
+    transform: scale(1.02) !important;
+  }
+
+  .hover\:scale-110:hover {
+    transform: scale(1.03) !important;
+  }
+
+  .hover\:scale-\[1\.02\]:hover {
+    transform: scale(1.01) !important;
+  }
+
+  .hover\:scale-\[1\.01\]:hover {
+    transform: scale(1.005) !important;
+  }
+
+  .group-hover\:scale-105:hover {
+    transform: scale(1.02) !important;
+  }
+
+  /* Reduce animation delays for better perceived performance */
+  [style*="animation-delay"] {
+    animation-delay: 0s !important;
+  }
+
+  /* Smooth all transitions */
+  * {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

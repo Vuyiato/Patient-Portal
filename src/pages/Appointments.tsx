@@ -134,6 +134,7 @@ const Appointments = () => {
       const appointmentData = {
         patientId: user.uid,
         patientName: user.displayName || user.email || "Patient",
+        patientEmail: user.email || "",
         date: bookingForm.date,
         time: bookingForm.time,
         type: bookingForm.type,
