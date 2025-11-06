@@ -80,13 +80,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   };
 
   const handleProcessPayment = async () => {
-    console.log("=== Payment Process Started ===");
-    console.log("Invoice:", invoice);
-    console.log("User email:", user?.email);
-    console.log("Payment method:", paymentMethod);
-
     if (!invoice.id || !user?.email) {
-      console.log("Missing invoice ID or user email");
       showToast("Missing payment information", "error");
       return;
     }
@@ -107,25 +101,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       }, 200);
 
       if (paymentMethod === "card") {
-        console.log("Processing card payment...");
-        console.log("Card details:", {
-          cardNumber,
-          cardName,
-          expiryMonth,
-          expiryYear,
-          cvv,
-        });
-
         // Validate card fields
         if (!cardNumber || !cardName || !expiryMonth || !expiryYear || !cvv) {
-          console.log("Validation failed - missing fields");
           showToast("Please fill in all card details", "error");
           setProcessing(false);
           clearInterval(progressInterval);
           return;
         }
 
-        console.log("Calling processCardPayment...");
         const result = await processCardPayment(
           invoice.id,
           {
@@ -137,7 +120,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           },
           user.email
         );
-        console.log("Payment result:", result);
 
         clearInterval(progressInterval);
         setProgress(100);
@@ -157,17 +139,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           setProgress(0);
         }
       } else if (paymentMethod === "eft") {
-        console.log("Processing EFT payment...");
-        console.log("EFT details:", {
-          accountHolder,
-          accountNumber,
-          bankName,
-          branchCode,
-        });
-
         // Validate EFT fields
         if (!accountHolder || !accountNumber || !bankName || !branchCode) {
-          console.log("Validation failed - missing EFT fields");
           showToast("Please fill in all EFT details", "error");
           setProcessing(false);
           clearInterval(progressInterval);
@@ -177,7 +150,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         clearInterval(progressInterval);
         setProgress(100);
 
-        console.log("EFT payment initiated");
         showToast(
           "EFT payment initiated. Please allow 1-3 business days for processing.",
           "success"
@@ -509,13 +481,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               Cancel
             </button>
             <button
-              onClick={() => {
-                alert("Button was clicked!"); // This should always show
-                console.log("🔴 BUTTON CLICKED!");
-                console.log("Processing state:", processing);
-                console.log("Invoice:", invoice);
-                handleProcessPayment();
-              }}
+              onClick={handleProcessPayment}
               disabled={processing}
               type="button"
               className="flex-1 px-6 py-3 bg-gradient-to-r from-brand-teal to-brand-dark text-white rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all disabled:opacity-50 disabled:transform-none flex items-center justify-center gap-2"
