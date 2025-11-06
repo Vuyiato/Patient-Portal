@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 
@@ -11,6 +11,7 @@ import SettingsPage from "./pages/Settings";
 import AppointmentsPage from "./pages/Appointments";
 import DocumentsPage from "./pages/Documents";
 import ChatPage from "./pages/Chat";
+import LoadingScreen from "./components/LoadingScreen";
 
 const AppLayout = () => {
   const { user } = useAuth();
@@ -44,7 +45,28 @@ const PublicRoute: React.FC = () => {
 
 function App() {
   const { loading } = useAuth();
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
 
+  // Show loading screen on first mount
+  useEffect(() => {
+    // This ensures the loading screen shows once per session
+    const hasShownLoading = sessionStorage.getItem("hasShownLoading");
+    if (hasShownLoading) {
+      setShowLoadingScreen(false);
+    }
+  }, []);
+
+  const handleLoadingComplete = () => {
+    setShowLoadingScreen(false);
+    sessionStorage.setItem("hasShownLoading", "true");
+  };
+
+  // Show custom loading screen on initial load
+  if (showLoadingScreen) {
+    return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
+  }
+
+  // Show auth loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
