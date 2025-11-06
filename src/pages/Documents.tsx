@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import {
   IconFileText,
@@ -9,10 +9,13 @@ import {
   IconFolder,
   IconSearch,
   IconFilter,
+  IconX,
+  IconCheck,
 } from "../components/Icons";
 import {
   getPatientDocuments,
   deleteDocument,
+  uploadDocument,
   Document as FirebaseDocument,
 } from "../services/database-service";
 
@@ -35,6 +38,11 @@ const Documents = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch documents from Firebase
   useEffect(() => {
@@ -54,6 +62,7 @@ const Documents = () => {
           size: doc.size || "Unknown",
           date: doc.date,
           url: doc.fileUrl || doc.url,
+          storagePath: doc.storagePath,
         }));
 
         setDocuments(transformedData);
@@ -99,6 +108,66 @@ const Documents = () => {
     }
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Check file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        showToast("File size must be less than 10MB", "error");
+        return;
+      }
+      setSelectedFile(file);
+      setShowUploadModal(true);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !user) return;
+
+    try {
+      setUploading(true);
+      setUploadProgress(0);
+
+      // Upload file
+      await uploadDocument(user.uid, selectedFile, (progress) => {
+        setUploadProgress(progress);
+      });
+
+      // Refresh documents list
+      const data = await getPatientDocuments(user.uid);
+      const transformedData: Document[] = data.map((doc) => ({
+        id: doc.id || "",
+        name: doc.name,
+        type: doc.type || "PDF",
+        category: doc.category || "General",
+        size: doc.size || "Unknown",
+        date: doc.date,
+        url: doc.fileUrl || doc.url,
+        storagePath: doc.storagePath,
+      }));
+
+      setDocuments(transformedData);
+      setShowUploadModal(false);
+      setSelectedFile(null);
+      setUploadProgress(0);
+      showToast("Document uploaded successfully! 🎉", "success");
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      showToast("Failed to upload document", "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const cancelUpload = () => {
+    setShowUploadModal(false);
+    setSelectedFile(null);
+    setUploadProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   // Get unique categories from documents
   const allCategories = [
     "all",
@@ -126,6 +195,30 @@ const Documents = () => {
       .includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
+
+  // Calculate real stats
+  const labResultsCount = documents.filter(
+    (doc) => doc.category === "Lab Results"
+  ).length;
+  const prescriptionsCount = documents.filter(
+    (doc) => doc.category === "Prescriptions"
+  ).length;
+
+  // Calculate storage used (assuming size is in format "XX KB" or "XX MB")
+  const totalStorageMB = documents.reduce((total, doc) => {
+    const sizeMatch = doc.size.match(/([\d.]+)\s*(KB|MB)/i);
+    if (sizeMatch) {
+      const value = parseFloat(sizeMatch[1]);
+      const unit = sizeMatch[2].toUpperCase();
+      return total + (unit === "MB" ? value : value / 1024);
+    }
+    return total;
+  }, 0);
+
+  const storageUsed =
+    totalStorageMB < 1
+      ? `${(totalStorageMB * 1024).toFixed(1)} KB`
+      : `${totalStorageMB.toFixed(1)} MB`;
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
@@ -167,10 +260,20 @@ const Documents = () => {
               Access and manage your medical documents
             </p>
           </div>
-          <button className="bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 animate-scale-in">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 animate-scale-in"
+          >
             <IconUpload className="w-5 h-5" />
             Upload Document
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileSelect}
+            className="hidden"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+          />
         </div>
 
         {/* Search and Filter Bar */}
@@ -228,21 +331,21 @@ const Documents = () => {
           },
           {
             label: "Lab Results",
-            count: 1,
+            count: labResultsCount,
             icon: IconFileText,
             color: "from-green-500 to-emerald-600",
             delay: "0.4s",
           },
           {
             label: "Prescriptions",
-            count: 1,
+            count: prescriptionsCount,
             icon: IconFileText,
             color: "from-purple-500 to-violet-600",
             delay: "0.5s",
           },
           {
             label: "Storage Used",
-            count: "14.8 MB",
+            count: storageUsed,
             icon: IconFolder,
             color: "from-orange-500 to-amber-600",
             delay: "0.6s",
@@ -357,9 +460,124 @@ const Documents = () => {
               ? "Upload your first document to get started."
               : `No documents in ${selectedCategory}.`}
           </p>
-          <button className="bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+          >
             Upload Document
           </button>
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      {showUploadModal && selectedFile && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full mx-4 shadow-2xl animate-scale-in">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-brand-teal to-brand-dark p-6 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-1">
+                    Upload Document
+                  </h2>
+                  <p className="text-brand-yellow text-sm">
+                    Uploading to your medical records
+                  </p>
+                </div>
+                {!uploading && (
+                  <button
+                    onClick={cancelUpload}
+                    className="text-white hover:text-brand-yellow transition-colors p-2 hover:bg-white/10 rounded-lg"
+                  >
+                    <IconX className="w-6 h-6" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {/* File Info */}
+              <div className="mb-6 p-4 bg-brand-light rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-brand-teal to-brand-dark flex items-center justify-center flex-shrink-0">
+                    <IconFileText className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 truncate">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {(selectedFile.size / 1024).toFixed(2)} KB
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Upload Progress */}
+              {uploading && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Uploading...
+                    </span>
+                    <span className="text-sm font-semibold text-brand-teal">
+                      {uploadProgress}%
+                    </span>
+                  </div>
+                  <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-brand-teal to-brand-dark transition-all duration-300 rounded-full"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Info Box */}
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <IconFileText className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-semibold mb-1">Important:</p>
+                    <ul className="space-y-1 list-disc list-inside text-xs">
+                      <li>Maximum file size: 10MB</li>
+                      <li>Supported formats: PDF, DOC, DOCX, JPG, PNG</li>
+                      <li>Documents are securely encrypted</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={cancelUpload}
+                  disabled={uploading}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpload}
+                  disabled={uploading}
+                  className="flex-1 bg-gradient-to-r from-brand-teal to-brand-dark text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                >
+                  {uploading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <IconCheck className="w-5 h-5" />
+                      <span>Upload</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
