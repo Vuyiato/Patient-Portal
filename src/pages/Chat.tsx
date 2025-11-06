@@ -21,10 +21,11 @@ import {
 
 interface Message {
   id: string;
-  sender: "user" | "support";
+  sender: "user" | "support" | "doctor";
   text: string;
   timestamp: string;
   read: boolean;
+  senderName?: string;
 }
 
 const Chat = () => {
@@ -62,13 +63,36 @@ const Chat = () => {
         const fetchedMessages = await getChatMessages(chatIdResult);
 
         // Transform Firebase messages to UI format
-        const transformedMessages: Message[] = fetchedMessages.map((msg) => ({
-          id: msg.id || "",
-          sender: msg.senderId === user.uid ? "user" : "support",
-          text: msg.text,
-          timestamp: formatTimestamp(msg.timestamp),
-          read: msg.read || false,
-        }));
+        const transformedMessages: Message[] = fetchedMessages.map(
+          (msg: any) => {
+            // Determine sender type
+            let senderType: "user" | "support" | "doctor" = "support";
+            let senderName = "";
+
+            if (msg.senderId === user.uid) {
+              senderType = "user";
+            } else if (
+              msg.senderRole === "doctor" ||
+              msg.senderId === "doctor" ||
+              msg.senderName?.toLowerCase().includes("dr")
+            ) {
+              senderType = "doctor";
+              senderName = msg.senderName || "Dr. Jabu Nkehli";
+            } else {
+              senderType = "support";
+              senderName = msg.senderName || "Support Team";
+            }
+
+            return {
+              id: msg.id || "",
+              sender: senderType,
+              text: msg.text,
+              timestamp: formatTimestamp(msg.timestamp),
+              read: msg.read || false,
+              senderName: senderName,
+            };
+          }
+        );
 
         setMessages(transformedMessages);
 
@@ -93,13 +117,34 @@ const Chat = () => {
     if (!chatId || !user?.uid) return;
 
     const unsubscribe = subscribeToMessages(chatId, (fetchedMessages) => {
-      const transformedMessages: Message[] = fetchedMessages.map((msg) => ({
-        id: msg.id || "",
-        sender: msg.senderId === user.uid ? "user" : "support",
-        text: msg.text,
-        timestamp: formatTimestamp(msg.timestamp),
-        read: msg.read || false,
-      }));
+      const transformedMessages: Message[] = fetchedMessages.map((msg: any) => {
+        // Determine sender type
+        let senderType: "user" | "support" | "doctor" = "support";
+        let senderName = "";
+
+        if (msg.senderId === user.uid) {
+          senderType = "user";
+        } else if (
+          msg.senderRole === "doctor" ||
+          msg.senderId === "doctor" ||
+          msg.senderName?.toLowerCase().includes("dr")
+        ) {
+          senderType = "doctor";
+          senderName = msg.senderName || "Dr. Jabu Nkehli";
+        } else {
+          senderType = "support";
+          senderName = msg.senderName || "Support Team";
+        }
+
+        return {
+          id: msg.id || "",
+          sender: senderType,
+          text: msg.text,
+          timestamp: formatTimestamp(msg.timestamp),
+          read: msg.read || false,
+          senderName: senderName,
+        };
+      });
 
       setMessages(transformedMessages);
     });
@@ -251,37 +296,66 @@ const Chat = () => {
                   } animate-slide-in-up`}
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  <div
-                    className={`max-w-[70%] ${
-                      msg.sender === "user"
-                        ? "bg-gradient-to-br from-brand-teal to-brand-dark text-white"
-                        : "bg-white shadow-md"
-                    } rounded-2xl p-4 transform hover:scale-[1.02] transition-all duration-300`}
-                  >
-                    <p
-                      className={`mb-2 ${
-                        msg.sender === "user" ? "text-white" : "text-gray-800"
-                      }`}
+                  <div className="max-w-[70%]">
+                    {/* Doctor Badge - Only for doctor messages */}
+                    {msg.sender === "doctor" && (
+                      <div className="flex items-center gap-2 mb-2 ml-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold">
+                          JN
+                        </div>
+                        <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
+                          {msg.senderName || "Dr. Jabu Nkehli"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Support Badge - Only for support messages */}
+                    {msg.sender === "support" && (
+                      <div className="flex items-center gap-2 mb-2 ml-2">
+                        <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+                          {msg.senderName || "Support Team"}
+                        </span>
+                      </div>
+                    )}
+
+                    <div
+                      className={`${
+                        msg.sender === "user"
+                          ? "bg-gradient-to-br from-brand-teal to-brand-dark text-white"
+                          : msg.sender === "doctor"
+                          ? "bg-gradient-to-br from-purple-500 to-violet-600 text-white border-2 border-purple-300"
+                          : "bg-white shadow-md"
+                      } rounded-2xl p-4 transform hover:scale-[1.02] transition-all duration-300`}
                     >
-                      {msg.text}
-                    </p>
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={`text-xs ${
-                          msg.sender === "user"
-                            ? "text-brand-yellow"
-                            : "text-gray-500"
+                      <p
+                        className={`mb-2 ${
+                          msg.sender === "user" || msg.sender === "doctor"
+                            ? "text-white"
+                            : "text-gray-800"
                         }`}
                       >
-                        {msg.timestamp}
-                      </span>
-                      {msg.sender === "user" && (
-                        <IconCheck
-                          className={`w-4 h-4 ${
-                            msg.read ? "text-brand-yellow" : "text-white/50"
+                        {msg.text}
+                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`text-xs ${
+                            msg.sender === "user"
+                              ? "text-brand-yellow"
+                              : msg.sender === "doctor"
+                              ? "text-purple-200"
+                              : "text-gray-500"
                           }`}
-                        />
-                      )}
+                        >
+                          {msg.timestamp}
+                        </span>
+                        {msg.sender === "user" && (
+                          <IconCheck
+                            className={`w-4 h-4 ${
+                              msg.read ? "text-brand-yellow" : "text-white/50"
+                            }`}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
