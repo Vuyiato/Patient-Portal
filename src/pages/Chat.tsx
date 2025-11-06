@@ -44,6 +44,7 @@ const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const contacts: Contact[] = [
@@ -157,44 +158,7 @@ const Chat = () => {
     });
   };
 
-  const [mockMessages] = useState<Message[]>([
-    {
-      id: "1",
-      sender: "support",
-      text: "Hello! Welcome to Dermaglare. How can I assist you today?",
-      timestamp: "10:00 AM",
-      read: true,
-    },
-    {
-      id: "2",
-      sender: "user",
-      text: "Hi! I have a question about my upcoming appointment.",
-      timestamp: "10:05 AM",
-      read: true,
-    },
-    {
-      id: "3",
-      sender: "support",
-      text: "Of course! I'd be happy to help. What would you like to know?",
-      timestamp: "10:06 AM",
-      read: true,
-    },
-    {
-      id: "4",
-      sender: "user",
-      text: "Can I reschedule my appointment for next week?",
-      timestamp: "10:07 AM",
-      read: true,
-    },
-    {
-      id: "5",
-      sender: "support",
-      text: "Absolutely! Let me check the available slots for you. One moment please.",
-      timestamp: "10:08 AM",
-      read: true,
-    },
-  ]);
-
+  // Auto-select first contact on mount
   useEffect(() => {
     if (contacts.length > 0 && !selectedContact) {
       setSelectedContact(contacts[0]);
@@ -211,20 +175,35 @@ const Chat = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !chatId || !user?.uid) return;
+    if (!message.trim() || !chatId || !user?.uid || sending) return;
+
+    const messageText = message.trim();
 
     try {
-      // Send message to Firebase
-      await sendMessage(chatId, user.uid, message.trim());
-
-      // Clear input
+      setSending(true);
+      // Clear input immediately for better UX
       setMessage("");
+
+      // Send message to Firebase
+      await sendMessage(chatId, user.uid, messageText);
 
       // Scroll to bottom
       scrollToBottom();
     } catch (error) {
       console.error("Error sending message:", error);
       showToast("Failed to send message", "error");
+      // Restore message on error
+      setMessage(messageText);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Handle Enter key to send message
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e as any);
     }
   };
 
@@ -348,9 +327,17 @@ const Chat = () => {
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500">
-                      No messages yet. Start the conversation!
-                    </p>
+                    <div className="text-center animate-fade-in">
+                      <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-brand-teal to-brand-dark rounded-full flex items-center justify-center animate-float">
+                        <IconSend className="w-10 h-10 text-white" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-800 mb-2">
+                        Start the conversation
+                      </h3>
+                      <p className="text-gray-500">
+                        Send a message to {selectedContact.name}
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   messages.map((msg, index) => (
@@ -399,6 +386,31 @@ const Chat = () => {
                     </div>
                   ))
                 )}
+
+                {/* Sending indicator */}
+                {sending && (
+                  <div className="flex justify-end animate-fade-in">
+                    <div className="max-w-[70%] bg-gradient-to-br from-brand-teal/50 to-brand-dark/50 text-white rounded-2xl p-4">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
+                          <div
+                            className="w-2 h-2 bg-white rounded-full animate-bounce"
+                            style={{ animationDelay: "0.1s" }}
+                          ></div>
+                          <div
+                            className="w-2 h-2 bg-white rounded-full animate-bounce"
+                            style={{ animationDelay: "0.2s" }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-brand-yellow">
+                          Sending...
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div ref={messagesEndRef} />
               </div>
 
@@ -424,15 +436,21 @@ const Chat = () => {
                     type="text"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
                     placeholder="Type your message..."
-                    className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                    disabled={sending}
+                    className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300 disabled:opacity-50"
                   />
                   <button
                     type="submit"
-                    disabled={!message.trim()}
-                    className="bg-gradient-to-r from-brand-teal to-brand-dark text-white p-3 rounded-xl hover:shadow-lg transform hover:scale-110 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    disabled={!message.trim() || sending}
+                    className="bg-gradient-to-r from-brand-teal to-brand-dark text-white p-3 rounded-xl hover:shadow-lg transform hover:scale-110 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center min-w-[48px]"
                   >
-                    <IconSend className="w-5 h-5" />
+                    {sending ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <IconSend className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
               </form>
