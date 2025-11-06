@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import {
   IconUser,
@@ -11,17 +11,36 @@ import {
   IconCheck,
   IconActivity,
   IconHeart,
+  IconLock,
+  IconX,
 } from "../components/Icons";
 import {
   getPatientProfile,
   updatePatientProfile,
   getPatientAppointments,
 } from "../services/database-service";
+import {
+  updatePassword,
+  updateEmail,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from "firebase/auth";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "../services/firebase-config";
 
 const Profile = () => {
   const { user, showToast } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingMedical, setIsEditingMedical] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [profileData, setProfileData] = useState({
     name: "",
     email: "",
@@ -33,9 +52,11 @@ const Profile = () => {
     weight: "",
     allergies: "",
     emergencyContact: "",
+    photoURL: "",
   });
   const [appointmentCount, setAppointmentCount] = useState(0);
   const [completedVisits, setCompletedVisits] = useState(0);
+  const [upcomingVisits, setUpcomingVisits] = useState(0);
 
   // Fetch profile data from Firebase
   useEffect(() => {
@@ -54,13 +75,14 @@ const Profile = () => {
             phone: profile.phone || "",
             address: profile.address || "",
             dateOfBirth: profile.dob || "",
-            bloodType: (profile as any).bloodType || "O+",
+            bloodType: (profile as any).bloodType || "",
             height: profile.vitals?.heightCm?.toString() || "",
             weight: profile.vitals?.weightKg?.toString() || "",
             allergies: Array.isArray(profile.allergies)
               ? profile.allergies.join(", ")
               : "",
             emergencyContact: (profile as any).emergencyContact || "",
+            photoURL: (profile as any).photoURL || user.photoURL || "",
           });
         } else {
           // Set default values from auth user
@@ -68,14 +90,21 @@ const Profile = () => {
             ...prev,
             name: user.displayName || "",
             email: user.email || "",
+            photoURL: user.photoURL || "",
           }));
         }
 
         // Calculate appointment stats
+        const upcoming = appointments.filter(
+          (apt) => apt.status === "Pending" || apt.status === "Confirmed"
+        ).length;
+        const completed = appointments.filter(
+          (apt) => apt.status === "Completed"
+        ).length;
+
         setAppointmentCount(appointments.length);
-        setCompletedVisits(
-          appointments.filter((apt) => apt.status === "Completed").length
-        );
+        setCompletedVisits(completed);
+        setUpcomingVisits(upcoming);
       } catch (error) {
         console.error("Error fetching profile:", error);
         showToast("Failed to load profile data", "error");
@@ -111,36 +140,187 @@ const Profile = () => {
         },
         bloodType: profileData.bloodType,
         emergencyContact: profileData.emergencyContact,
+        photoURL: profileData.photoURL,
       };
 
       await updatePatientProfile(user.uid, updateData);
       setIsEditing(false);
-      showToast("Profile updated successfully", "success");
+      showToast("Profile updated successfully! ✅", "success");
     } catch (error) {
       console.error("Error saving profile:", error);
       showToast("Failed to update profile", "error");
     }
   };
 
+  const handleSaveMedical = async () => {
+    if (!user) return;
+
+    try {
+      const updateData: any = {
+        bloodType: profileData.bloodType,
+        allergies: profileData.allergies
+          ? profileData.allergies.split(",").map((a) => a.trim())
+          : [],
+        vitals: {
+          heightCm: profileData.height
+            ? parseFloat(profileData.height)
+            : undefined,
+          weightKg: profileData.weight
+            ? parseFloat(profileData.weight)
+            : undefined,
+        },
+        emergencyContact: profileData.emergencyContact,
+      };
+
+      await updatePatientProfile(user.uid, updateData);
+      setIsEditingMedical(false);
+      showToast("Medical information updated successfully! ✅", "success");
+    } catch (error) {
+      console.error("Error saving medical info:", error);
+      showToast("Failed to update medical information", "error");
+    }
+  };
+
+  const handleProfilePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !user) return;
+
+    const file = e.target.files[0];
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showToast("Please select an image file", "error");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("Image size must be less than 5MB", "error");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      
+      // Create storage reference
+      const storageRef = ref(storage, `profile-pictures/${user.uid}/${Date.now()}_${file.name}`);
+      
+      // Upload file
+      await uploadBytes(storageRef, file);
+      
+      // Get download URL
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      // Update profile with new photo URL
+      const updateData: any = {
+        photoURL: downloadURL,
+      };
+      
+      await updatePatientProfile(user.uid, updateData);
+      
+      setProfileData((prev) => ({ ...prev, photoURL: downloadURL }));
+      showToast("Profile picture updated successfully! 📸", "success");
+    } catch (error) {
+      console.error("Error uploading profile picture:", error);
+      showToast("Failed to upload profile picture", "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!user || !user.email) return;
+
+    // Validate inputs
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      showToast("Please fill in all password fields", "error");
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      showToast("New passwords do not match", "error");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      showToast("Password must be at least 6 characters", "error");
+      return;
+    }
+
+    try {
+      // Re-authenticate user
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        passwordData.currentPassword
+      );
+      
+      await reauthenticateWithCredential(user, credential);
+      
+      // Update password
+      await updatePassword(user, passwordData.newPassword);
+      
+      setShowPasswordModal(false);
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      showToast("Password changed successfully! 🔐", "success");
+    } catch (error: any) {
+      console.error("Error changing password:", error);
+      if (error.code === "auth/wrong-password") {
+        showToast("Current password is incorrect", "error");
+      } else {
+        showToast("Failed to change password", "error");
+      }
+    }
+  };
+
+  // Calculate health score based on profile completeness and appointment attendance
+  const calculateHealthScore = () => {
+    let score = 0;
+    const fields = [
+      profileData.name,
+      profileData.email,
+      profileData.phone,
+      profileData.address,
+      profileData.dateOfBirth,
+      profileData.bloodType,
+      profileData.height,
+      profileData.weight,
+      profileData.emergencyContact,
+    ];
+    
+    // Profile completeness (60%)
+    const filledFields = fields.filter(field => field && field.trim() !== "").length;
+    score += (filledFields / fields.length) * 60;
+    
+    // Appointment attendance rate (40%)
+    if (appointmentCount > 0) {
+      const attendanceRate = (completedVisits / appointmentCount) * 40;
+      score += attendanceRate;
+    }
+    
+    return Math.round(score);
+  };
+
+  const healthScore = calculateHealthScore();
+  const healthStatus = healthScore >= 80 ? "Excellent" : healthScore >= 60 ? "Good" : healthScore >= 40 ? "Fair" : "Needs Attention";
+
   const healthStats = [
     {
-      label: "Appointments",
+      label: "Total Appointments",
       value: appointmentCount.toString(),
-      change: `${appointmentCount} total`,
+      change: `${upcomingVisits} upcoming`,
       icon: IconCalendar,
       color: "from-blue-500 to-cyan-600",
     },
     {
       label: "Health Score",
-      value: "92%",
-      change: "Excellent",
+      value: `${healthScore}%`,
+      change: healthStatus,
       icon: IconHeart,
-      color: "from-green-500 to-emerald-600",
+      color: healthScore >= 80 ? "from-green-500 to-emerald-600" : healthScore >= 60 ? "from-yellow-500 to-orange-500" : "from-red-500 to-rose-600",
     },
     {
       label: "Completed Visits",
       value: completedVisits.toString(),
-      change: "All time",
+      change: `${Math.round((completedVisits / (appointmentCount || 1)) * 100)}% attendance`,
       icon: IconActivity,
       color: "from-purple-500 to-violet-600",
     },
@@ -181,11 +361,35 @@ const Profile = () => {
             {/* Profile Picture */}
             <div className="px-6 pb-6">
               <div className="relative -mt-16 mb-4">
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-brand-yellow to-orange-400 flex items-center justify-center text-brand-dark font-bold text-5xl border-4 border-white shadow-xl mx-auto animate-scale-in">
-                  {profileData.name.charAt(0).toUpperCase()}
-                </div>
-                <button className="absolute bottom-0 right-1/2 translate-x-16 w-10 h-10 bg-gradient-to-r from-brand-teal to-brand-dark rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300">
-                  <IconCamera className="w-5 h-5" />
+                {profileData.photoURL ? (
+                  <img
+                    src={profileData.photoURL}
+                    alt="Profile"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-xl mx-auto animate-scale-in"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-brand-yellow to-orange-400 flex items-center justify-center text-brand-dark font-bold text-5xl border-4 border-white shadow-xl mx-auto animate-scale-in">
+                    {profileData.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePictureUpload}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="absolute bottom-0 right-1/2 translate-x-16 w-10 h-10 bg-gradient-to-r from-brand-teal to-brand-dark rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Upload profile picture"
+                >
+                  {uploading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <IconCamera className="w-5 h-5" />
+                  )}
                 </button>
               </div>
 
@@ -223,23 +427,32 @@ const Profile = () => {
                 ))}
               </div>
 
-              {/* Action Button */}
-              <button
-                onClick={() => setIsEditing(!isEditing)}
-                className="w-full mt-6 bg-gradient-to-r from-brand-teal to-brand-dark text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                {isEditing ? (
-                  <>
-                    <IconCheck className="w-5 h-5" />
-                    Save Changes
-                  </>
-                ) : (
-                  <>
-                    <IconEdit className="w-5 h-5" />
-                    Edit Profile
-                  </>
-                )}
-              </button>
+              {/* Action Buttons */}
+              <div className="space-y-3 mt-6">
+                <button
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="w-full bg-gradient-to-r from-brand-teal to-brand-dark text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  {isEditing ? (
+                    <>
+                      <IconCheck className="w-5 h-5" />
+                      Save Changes
+                    </>
+                  ) : (
+                    <>
+                      <IconEdit className="w-5 h-5" />
+                      Edit Profile
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="w-full bg-gradient-to-r from-purple-500 to-violet-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  <IconLock className="w-5 h-5" />
+                  Change Password
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -427,77 +640,249 @@ const Profile = () => {
             className="bg-white rounded-2xl shadow-xl p-6 animate-slide-in-up"
             style={{ animationDelay: "0.3s" }}
           >
-            <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                <IconHeart className="w-5 h-5 text-white" />
-              </div>
-              Medical Information
-            </h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                  <IconHeart className="w-5 h-5 text-white" />
+                </div>
+                Medical Information
+              </h3>
+              {!isEditingMedical && (
+                <button
+                  onClick={() => setIsEditingMedical(true)}
+                  className="text-brand-teal hover:text-brand-dark transition-colors duration-300"
+                >
+                  <IconEdit className="w-5 h-5" />
+                </button>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div
-                className="animate-fade-in"
-                style={{ animationDelay: "0.4s" }}
-              >
+              {/* Blood Type */}
+              <div className="animate-fade-in" style={{ animationDelay: "0.4s" }}>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Blood Type
                 </label>
-                <div className="px-4 py-3 bg-red-50 rounded-xl text-red-800 font-bold">
-                  {profileData.bloodType}
-                </div>
+                {isEditingMedical ? (
+                  <select
+                    value={profileData.bloodType}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, bloodType: e.target.value })
+                    }
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  >
+                    <option value="">Select Blood Type</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                ) : (
+                  <div className="px-4 py-3 bg-red-50 rounded-xl text-red-800 font-bold">
+                    {profileData.bloodType || "Not specified"}
+                  </div>
+                )}
               </div>
 
-              <div
-                className="animate-fade-in"
-                style={{ animationDelay: "0.5s" }}
-              >
+              {/* Allergies */}
+              <div className="animate-fade-in" style={{ animationDelay: "0.5s" }}>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Allergies
+                  Allergies (comma-separated)
                 </label>
-                <div className="px-4 py-3 bg-orange-50 rounded-xl text-orange-800 font-medium">
-                  {profileData.allergies}
-                </div>
+                {isEditingMedical ? (
+                  <input
+                    type="text"
+                    value={profileData.allergies}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, allergies: e.target.value })
+                    }
+                    placeholder="e.g., Penicillin, Peanuts"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  />
+                ) : (
+                  <div className="px-4 py-3 bg-orange-50 rounded-xl text-orange-800 font-medium">
+                    {profileData.allergies || "None"}
+                  </div>
+                )}
               </div>
 
-              <div
-                className="animate-fade-in"
-                style={{ animationDelay: "0.6s" }}
-              >
+              {/* Height */}
+              <div className="animate-fade-in" style={{ animationDelay: "0.6s" }}>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Height
+                  Height (cm)
                 </label>
-                <div className="px-4 py-3 bg-brand-light rounded-xl text-gray-800 font-medium">
-                  {profileData.height}
-                </div>
+                {isEditingMedical ? (
+                  <input
+                    type="number"
+                    value={profileData.height}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, height: e.target.value })
+                    }
+                    placeholder="e.g., 170"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  />
+                ) : (
+                  <div className="px-4 py-3 bg-brand-light rounded-xl text-gray-800 font-medium">
+                    {profileData.height ? `${profileData.height} cm` : "Not specified"}
+                  </div>
+                )}
               </div>
 
-              <div
-                className="animate-fade-in"
-                style={{ animationDelay: "0.7s" }}
-              >
+              {/* Weight */}
+              <div className="animate-fade-in" style={{ animationDelay: "0.7s" }}>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Weight
+                  Weight (kg)
                 </label>
-                <div className="px-4 py-3 bg-brand-light rounded-xl text-gray-800 font-medium">
-                  {profileData.weight}
-                </div>
+                {isEditingMedical ? (
+                  <input
+                    type="number"
+                    value={profileData.weight}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, weight: e.target.value })
+                    }
+                    placeholder="e.g., 70"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  />
+                ) : (
+                  <div className="px-4 py-3 bg-brand-light rounded-xl text-gray-800 font-medium">
+                    {profileData.weight ? `${profileData.weight} kg` : "Not specified"}
+                  </div>
+                )}
               </div>
 
-              <div
-                className="md:col-span-2 animate-fade-in"
-                style={{ animationDelay: "0.8s" }}
-              >
+              {/* Emergency Contact */}
+              <div className="md:col-span-2 animate-fade-in" style={{ animationDelay: "0.8s" }}>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Emergency Contact
                 </label>
-                <div className="px-4 py-3 bg-brand-light rounded-xl text-gray-800 font-medium">
-                  {profileData.emergencyContact}
+                {isEditingMedical ? (
+                  <input
+                    type="text"
+                    value={profileData.emergencyContact}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, emergencyContact: e.target.value })
+                    }
+                    placeholder="Name and phone number"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  />
+                ) : (
+                  <div className="px-4 py-3 bg-brand-light rounded-xl text-gray-800 font-medium">
+                    {profileData.emergencyContact || "Not specified"}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {isEditingMedical && (
+              <div className="mt-6 flex gap-4 animate-fade-in">
+                <button
+                  onClick={handleSaveMedical}
+                  className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+                >
+                  Save Medical Info
+                </button>
+                <button
+                  onClick={() => setIsEditingMedical(false)}
+                  className="px-8 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-all duration-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-scale-in">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
+                  <IconLock className="w-5 h-5 text-white" />
                 </div>
+                Change Password
+              </h3>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <IconX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) =>
+                    setPasswordData({ ...passwordData, currentPassword: e.target.value })
+                  }
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  placeholder="Enter current password"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) =>
+                    setPasswordData({ ...passwordData, newPassword: e.target.value })
+                  }
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  placeholder="Enter new password"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) =>
+                    setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+                  }
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  placeholder="Confirm new password"
+                />
+              </div>
+
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={handleChangePassword}
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+                >
+                  Change Password
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                  }}
+                  className="px-8 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-all duration-300"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
