@@ -10,6 +10,8 @@ import {
   IconSearch,
   IconCheck,
   IconX,
+  IconChevronLeft,
+  IconChevronRight,
 } from "../components/Icons";
 import {
   getPatientAppointments,
@@ -37,6 +39,9 @@ const Appointments = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Booking form state
   const [bookingForm, setBookingForm] = useState({
@@ -186,6 +191,78 @@ const Appointments = () => {
       ? appointments
       : appointments.filter((apt) => apt.status === selectedFilter);
 
+  // Calculate real stats from data
+  const upcomingCount = appointments.filter(
+    (apt) => apt.status === "upcoming"
+  ).length;
+  const completedCount = appointments.filter(
+    (apt) => apt.status === "completed"
+  ).length;
+
+  // Calculate this month's appointments
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const thisMonthCount = appointments.filter((apt) => {
+    const aptDate = new Date(apt.date);
+    return (
+      aptDate.getMonth() === currentMonth &&
+      aptDate.getFullYear() === currentYear
+    );
+  }).length;
+
+  // Calendar functions
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    return { daysInMonth, startingDayOfWeek, year, month };
+  };
+
+  const getAppointmentsForDate = (date: Date) => {
+    return appointments.filter((apt) => {
+      const aptDate = new Date(apt.date);
+      return (
+        aptDate.getDate() === date.getDate() &&
+        aptDate.getMonth() === date.getMonth() &&
+        aptDate.getFullYear() === date.getFullYear()
+      );
+    });
+  };
+
+  const previousMonth = () => {
+    setCurrentDate(
+      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
+    );
+  };
+
+  const nextMonth = () => {
+    setCurrentDate(
+      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
+    );
+  };
+
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
+  };
+
+  const isSameDate = (date1: Date | null, date2: Date) => {
+    if (!date1) return false;
+    return (
+      date1.getDate() === date2.getDate() &&
+      date1.getMonth() === date2.getMonth() &&
+      date1.getFullYear() === date2.getFullYear()
+    );
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "upcoming":
@@ -275,25 +352,24 @@ const Appointments = () => {
           </div>
         </div>
       </div>
-
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {[
           {
             label: "Upcoming",
-            count: 2,
+            count: upcomingCount,
             color: "from-green-500 to-emerald-600",
             delay: "0.2s",
           },
           {
             label: "Completed",
-            count: 2,
+            count: completedCount,
             color: "from-blue-500 to-cyan-600",
             delay: "0.3s",
           },
           {
             label: "This Month",
-            count: 4,
+            count: thisMonthCount,
             color: "from-purple-500 to-violet-600",
             delay: "0.4s",
           },
@@ -316,130 +392,336 @@ const Appointments = () => {
         ))}
       </div>
 
-      {/* Appointments Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredAppointments.map((appointment, index) => (
-          <div
-            key={appointment.id}
-            className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-[1.02] animate-slide-in-up"
-            style={{ animationDelay: `${0.5 + index * 0.1}s` }}
-          >
-            {/* Status Banner */}
-            <div
-              className={`h-2 bg-gradient-to-r ${getStatusColor(
-                appointment.status
-              )} animate-shimmer`}
-            />
-
-            <div className="p-6">
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-800 mb-1 group-hover:text-brand-teal transition-colors duration-300">
-                    {appointment.title}
-                  </h3>
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-brand-light text-brand-teal">
-                    {appointment.type}
-                  </span>
-                </div>
-                <div
-                  className={`flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r ${getStatusColor(
-                    appointment.status
-                  )} text-white text-sm font-semibold`}
-                >
-                  {getStatusIcon(appointment.status)}
-                  {appointment.status}
-                </div>
-              </div>
-
-              {/* Details */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 text-gray-700">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-teal to-brand-dark flex items-center justify-center">
-                    <IconUser className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Doctor</p>
-                    <p className="font-semibold">{appointment.doctor}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-gray-700">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-yellow to-orange-400 flex items-center justify-center">
-                    <IconCalendar className="w-5 h-5 text-brand-dark" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Date & Time</p>
-                    <p className="font-semibold">
-                      {new Date(appointment.date).toLocaleDateString("en-US", {
-                        weekday: "short",
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}{" "}
-                      at {appointment.time}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-gray-700">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
-                    <IconMapPin className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Location</p>
-                    <p className="font-semibold">{appointment.location}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="mt-6 flex gap-3">
-                {appointment.status === "upcoming" && (
-                  <>
-                    <button className="flex-1 bg-gradient-to-r from-brand-teal to-brand-dark text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300">
-                      Reschedule
-                    </button>
-                    <button
-                      onClick={() => handleCancelAppointment(appointment.id)}
-                      className="px-6 bg-red-50 text-red-600 py-3 rounded-xl font-semibold hover:bg-red-100 transform hover:scale-105 transition-all duration-300"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                )}
-                {appointment.status === "completed" && (
-                  <button className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300">
-                    View Details
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {filteredAppointments.length === 0 && (
-        <div className="text-center py-16 animate-fade-in">
-          <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-brand-teal to-brand-dark rounded-full flex items-center justify-center animate-float">
-            <IconCalendar className="w-12 h-12 text-white" />
-          </div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">
-            No appointments found
-          </h3>
-          <p className="text-gray-600 mb-6">
-            {selectedFilter === "all"
-              ? "You don't have any appointments scheduled yet."
-              : `No ${selectedFilter} appointments.`}
-          </p>
+      {/* View Toggle */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex gap-2 bg-white rounded-xl p-1 shadow-md">
           <button
-            onClick={() => setShowBookingModal(true)}
-            className="bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+            onClick={() => setViewMode("list")}
+            className={`px-6 py-2 rounded-lg font-semibold transition-all duration-300 ${
+              viewMode === "list"
+                ? "bg-gradient-to-r from-brand-teal to-brand-dark text-white shadow-lg"
+                : "text-gray-600 hover:text-brand-teal"
+            }`}
           >
-            Book Your First Appointment
+            List View
+          </button>
+          <button
+            onClick={() => setViewMode("calendar")}
+            className={`px-6 py-2 rounded-lg font-semibold transition-all duration-300 ${
+              viewMode === "calendar"
+                ? "bg-gradient-to-r from-brand-teal to-brand-dark text-white shadow-lg"
+                : "text-gray-600 hover:text-brand-teal"
+            }`}
+          >
+            Calendar View
           </button>
         </div>
+      </div>
+
+      {/* Calendar View */}
+      {viewMode === "calendar" && (
+        <div className="bg-white rounded-2xl p-6 shadow-xl mb-8 animate-fade-in">
+          {/* Calendar Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-bold text-gray-800">
+              {currentDate.toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              })}
+            </h3>
+            <div className="flex gap-2">
+              <button
+                onClick={previousMonth}
+                className="p-2 hover:bg-brand-light rounded-lg transition-colors"
+              >
+                <IconChevronLeft className="w-6 h-6 text-brand-teal" />
+              </button>
+              <button
+                onClick={nextMonth}
+                className="p-2 hover:bg-brand-light rounded-lg transition-colors"
+              >
+                <IconChevronRight className="w-6 h-6 text-brand-teal" />
+              </button>
+            </div>
+          </div>
+
+          {/* Calendar Grid */}
+          <div className="grid grid-cols-7 gap-2">
+            {/* Day headers */}
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+              <div
+                key={day}
+                className="text-center font-bold text-gray-600 py-2"
+              >
+                {day}
+              </div>
+            ))}
+
+            {/* Calendar days */}
+            {(() => {
+              const { daysInMonth, startingDayOfWeek, year, month } =
+                getDaysInMonth(currentDate);
+              const days = [];
+
+              // Empty cells for days before month starts
+              for (let i = 0; i < startingDayOfWeek; i++) {
+                days.push(
+                  <div key={`empty-${i}`} className="aspect-square"></div>
+                );
+              }
+
+              // Days of the month
+              for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const dayAppointments = getAppointmentsForDate(date);
+                const isCurrentDay = isToday(date);
+                const isSelected = isSameDate(selectedDate, date);
+
+                days.push(
+                  <div
+                    key={day}
+                    onClick={() => setSelectedDate(date)}
+                    className={`aspect-square p-2 rounded-lg border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                      isCurrentDay
+                        ? "border-brand-yellow bg-brand-yellow/10 ring-2 ring-brand-yellow ring-offset-2"
+                        : isSelected
+                        ? "border-brand-teal bg-brand-teal/10"
+                        : "border-gray-200 hover:border-brand-teal/50"
+                    }`}
+                  >
+                    <div className="flex flex-col h-full">
+                      <span
+                        className={`text-sm font-semibold ${
+                          isCurrentDay ? "text-brand-teal" : "text-gray-700"
+                        }`}
+                      >
+                        {day}
+                      </span>
+                      {dayAppointments.length > 0 && (
+                        <div className="flex-1 flex flex-col gap-1 mt-1">
+                          {dayAppointments.slice(0, 2).map((apt, idx) => (
+                            <div
+                              key={idx}
+                              className={`text-xs px-1 py-0.5 rounded truncate ${
+                                apt.status === "upcoming"
+                                  ? "bg-green-100 text-green-700"
+                                  : apt.status === "completed"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                              title={`${apt.time} - ${apt.title}`}
+                            >
+                              {apt.time}
+                            </div>
+                          ))}
+                          {dayAppointments.length > 2 && (
+                            <div className="text-xs text-gray-500">
+                              +{dayAppointments.length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              return days;
+            })()}
+          </div>
+
+          {/* Selected Date Appointments */}
+          {selectedDate && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <h4 className="text-lg font-bold text-gray-800 mb-4">
+                Appointments on{" "}
+                {selectedDate.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </h4>
+              {getAppointmentsForDate(selectedDate).length > 0 ? (
+                <div className="space-y-3">
+                  {getAppointmentsForDate(selectedDate).map((apt) => (
+                    <div
+                      key={apt.id}
+                      className="flex items-center justify-between p-4 bg-brand-light rounded-xl hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-3 h-3 rounded-full ${
+                            apt.status === "upcoming"
+                              ? "bg-green-500"
+                              : apt.status === "completed"
+                              ? "bg-blue-500"
+                              : "bg-red-500"
+                          }`}
+                        ></div>
+                        <div>
+                          <p className="font-semibold text-gray-800">
+                            {apt.title}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {apt.time} • {apt.doctor}
+                          </p>
+                        </div>
+                      </div>
+                      {apt.status === "upcoming" && (
+                        <button
+                          onClick={() => handleCancelAppointment(apt.id)}
+                          className="text-red-600 hover:text-red-700 text-sm font-semibold hover:underline transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">
+                  No appointments on this date
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Appointments Grid */}
+      {viewMode === "list" && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {filteredAppointments.map((appointment, index) => (
+              <div
+                key={appointment.id}
+                className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-[1.02] animate-slide-in-up"
+                style={{ animationDelay: `${0.5 + index * 0.1}s` }}
+              >
+                {/* Status Banner */}
+                <div
+                  className={`h-2 bg-gradient-to-r ${getStatusColor(
+                    appointment.status
+                  )} animate-shimmer`}
+                />
+
+                <div className="p-6">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-800 mb-1 group-hover:text-brand-teal transition-colors duration-300">
+                        {appointment.title}
+                      </h3>
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-brand-light text-brand-teal">
+                        {appointment.type}
+                      </span>
+                    </div>
+                    <div
+                      className={`flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r ${getStatusColor(
+                        appointment.status
+                      )} text-white text-sm font-semibold`}
+                    >
+                      {getStatusIcon(appointment.status)}
+                      {appointment.status}
+                    </div>
+                  </div>
+
+                  {/* Details */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 text-gray-700">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-teal to-brand-dark flex items-center justify-center">
+                        <IconUser className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Doctor</p>
+                        <p className="font-semibold">{appointment.doctor}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-gray-700">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-yellow to-orange-400 flex items-center justify-center">
+                        <IconCalendar className="w-5 h-5 text-brand-dark" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Date & Time</p>
+                        <p className="font-semibold">
+                          {new Date(appointment.date).toLocaleDateString(
+                            "en-US",
+                            {
+                              weekday: "short",
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}{" "}
+                          at {appointment.time}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-gray-700">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
+                        <IconMapPin className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Location</p>
+                        <p className="font-semibold">{appointment.location}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-6 flex gap-3">
+                    {appointment.status === "upcoming" && (
+                      <>
+                        <button className="flex-1 bg-gradient-to-r from-brand-teal to-brand-dark text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300">
+                          Reschedule
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleCancelAppointment(appointment.id)
+                          }
+                          className="px-6 bg-red-50 text-red-600 py-3 rounded-xl font-semibold hover:bg-red-100 transform hover:scale-105 transition-all duration-300"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                    {appointment.status === "completed" && (
+                      <button className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300">
+                        View Details
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Empty State */}
+          {filteredAppointments.length === 0 && (
+            <div className="text-center py-16 animate-fade-in">
+              <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-brand-teal to-brand-dark rounded-full flex items-center justify-center animate-float">
+                <IconCalendar className="w-12 h-12 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                No appointments found
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {selectedFilter === "all"
+                  ? "You don't have any appointments scheduled yet."
+                  : `No ${selectedFilter} appointments.`}
+              </p>
+              <button
+                onClick={() => setShowBookingModal(true)}
+                className="bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+              >
+                Book Your First Appointment
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Booking Modal */}
