@@ -181,13 +181,15 @@ const Profile = () => {
     }
   };
 
-  const handleProfilePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePictureUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (!e.target.files || !e.target.files[0] || !user) return;
 
     const file = e.target.files[0];
-    
+
     // Validate file type
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith("image/")) {
       showToast("Please select an image file", "error");
       return;
     }
@@ -200,23 +202,26 @@ const Profile = () => {
 
     try {
       setUploading(true);
-      
+
       // Create storage reference
-      const storageRef = ref(storage, `profile-pictures/${user.uid}/${Date.now()}_${file.name}`);
-      
+      const storageRef = ref(
+        storage,
+        `profile-pictures/${user.uid}/${Date.now()}_${file.name}`
+      );
+
       // Upload file
       await uploadBytes(storageRef, file);
-      
+
       // Get download URL
       const downloadURL = await getDownloadURL(storageRef);
-      
+
       // Update profile with new photo URL
       const updateData: any = {
         photoURL: downloadURL,
       };
-      
+
       await updatePatientProfile(user.uid, updateData);
-      
+
       setProfileData((prev) => ({ ...prev, photoURL: downloadURL }));
       showToast("Profile picture updated successfully! 📸", "success");
     } catch (error) {
@@ -231,7 +236,11 @@ const Profile = () => {
     if (!user || !user.email) return;
 
     // Validate inputs
-    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+    if (
+      !passwordData.currentPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
       showToast("Please fill in all password fields", "error");
       return;
     }
@@ -252,14 +261,18 @@ const Profile = () => {
         user.email,
         passwordData.currentPassword
       );
-      
+
       await reauthenticateWithCredential(user, credential);
-      
+
       // Update password
       await updatePassword(user, passwordData.newPassword);
-      
+
       setShowPasswordModal(false);
-      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
       showToast("Password changed successfully! 🔐", "success");
     } catch (error: any) {
       console.error("Error changing password:", error);
@@ -285,22 +298,31 @@ const Profile = () => {
       profileData.weight,
       profileData.emergencyContact,
     ];
-    
+
     // Profile completeness (60%)
-    const filledFields = fields.filter(field => field && field.trim() !== "").length;
+    const filledFields = fields.filter(
+      (field) => field && field.trim() !== ""
+    ).length;
     score += (filledFields / fields.length) * 60;
-    
+
     // Appointment attendance rate (40%)
     if (appointmentCount > 0) {
       const attendanceRate = (completedVisits / appointmentCount) * 40;
       score += attendanceRate;
     }
-    
+
     return Math.round(score);
   };
 
   const healthScore = calculateHealthScore();
-  const healthStatus = healthScore >= 80 ? "Excellent" : healthScore >= 60 ? "Good" : healthScore >= 40 ? "Fair" : "Needs Attention";
+  const healthStatus =
+    healthScore >= 80
+      ? "Excellent"
+      : healthScore >= 60
+      ? "Good"
+      : healthScore >= 40
+      ? "Fair"
+      : "Needs Attention";
 
   const healthStats = [
     {
@@ -315,12 +337,19 @@ const Profile = () => {
       value: `${healthScore}%`,
       change: healthStatus,
       icon: IconHeart,
-      color: healthScore >= 80 ? "from-green-500 to-emerald-600" : healthScore >= 60 ? "from-yellow-500 to-orange-500" : "from-red-500 to-rose-600",
+      color:
+        healthScore >= 80
+          ? "from-green-500 to-emerald-600"
+          : healthScore >= 60
+          ? "from-yellow-500 to-orange-500"
+          : "from-red-500 to-rose-600",
     },
     {
       label: "Completed Visits",
       value: completedVisits.toString(),
-      change: `${Math.round((completedVisits / (appointmentCount || 1)) * 100)}% attendance`,
+      change: `${Math.round(
+        (completedVisits / (appointmentCount || 1)) * 100
+      )}% attendance`,
       icon: IconActivity,
       color: "from-purple-500 to-violet-600",
     },
@@ -659,7 +688,10 @@ const Profile = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Blood Type */}
-              <div className="animate-fade-in" style={{ animationDelay: "0.4s" }}>
+              <div
+                className="animate-fade-in"
+                style={{ animationDelay: "0.4s" }}
+              >
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Blood Type
                 </label>
@@ -667,7 +699,10 @@ const Profile = () => {
                   <select
                     value={profileData.bloodType}
                     onChange={(e) =>
-                      setProfileData({ ...profileData, bloodType: e.target.value })
+                      setProfileData({
+                        ...profileData,
+                        bloodType: e.target.value,
+                      })
                     }
                     className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
                   >
@@ -689,7 +724,10 @@ const Profile = () => {
               </div>
 
               {/* Allergies */}
-              <div className="animate-fade-in" style={{ animationDelay: "0.5s" }}>
+              <div
+                className="animate-fade-in"
+                style={{ animationDelay: "0.5s" }}
+              >
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Allergies (comma-separated)
                 </label>
@@ -698,7 +736,10 @@ const Profile = () => {
                     type="text"
                     value={profileData.allergies}
                     onChange={(e) =>
-                      setProfileData({ ...profileData, allergies: e.target.value })
+                      setProfileData({
+                        ...profileData,
+                        allergies: e.target.value,
+                      })
                     }
                     placeholder="e.g., Penicillin, Peanuts"
                     className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
@@ -711,7 +752,10 @@ const Profile = () => {
               </div>
 
               {/* Height */}
-              <div className="animate-fade-in" style={{ animationDelay: "0.6s" }}>
+              <div
+                className="animate-fade-in"
+                style={{ animationDelay: "0.6s" }}
+              >
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Height (cm)
                 </label>
@@ -727,13 +771,18 @@ const Profile = () => {
                   />
                 ) : (
                   <div className="px-4 py-3 bg-brand-light rounded-xl text-gray-800 font-medium">
-                    {profileData.height ? `${profileData.height} cm` : "Not specified"}
+                    {profileData.height
+                      ? `${profileData.height} cm`
+                      : "Not specified"}
                   </div>
                 )}
               </div>
 
               {/* Weight */}
-              <div className="animate-fade-in" style={{ animationDelay: "0.7s" }}>
+              <div
+                className="animate-fade-in"
+                style={{ animationDelay: "0.7s" }}
+              >
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Weight (kg)
                 </label>
@@ -749,13 +798,18 @@ const Profile = () => {
                   />
                 ) : (
                   <div className="px-4 py-3 bg-brand-light rounded-xl text-gray-800 font-medium">
-                    {profileData.weight ? `${profileData.weight} kg` : "Not specified"}
+                    {profileData.weight
+                      ? `${profileData.weight} kg`
+                      : "Not specified"}
                   </div>
                 )}
               </div>
 
               {/* Emergency Contact */}
-              <div className="md:col-span-2 animate-fade-in" style={{ animationDelay: "0.8s" }}>
+              <div
+                className="md:col-span-2 animate-fade-in"
+                style={{ animationDelay: "0.8s" }}
+              >
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Emergency Contact
                 </label>
@@ -764,7 +818,10 @@ const Profile = () => {
                     type="text"
                     value={profileData.emergencyContact}
                     onChange={(e) =>
-                      setProfileData({ ...profileData, emergencyContact: e.target.value })
+                      setProfileData({
+                        ...profileData,
+                        emergencyContact: e.target.value,
+                      })
                     }
                     placeholder="Name and phone number"
                     className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
@@ -825,7 +882,10 @@ const Profile = () => {
                   type="password"
                   value={passwordData.currentPassword}
                   onChange={(e) =>
-                    setPasswordData({ ...passwordData, currentPassword: e.target.value })
+                    setPasswordData({
+                      ...passwordData,
+                      currentPassword: e.target.value,
+                    })
                   }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
                   placeholder="Enter current password"
@@ -840,7 +900,10 @@ const Profile = () => {
                   type="password"
                   value={passwordData.newPassword}
                   onChange={(e) =>
-                    setPasswordData({ ...passwordData, newPassword: e.target.value })
+                    setPasswordData({
+                      ...passwordData,
+                      newPassword: e.target.value,
+                    })
                   }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
                   placeholder="Enter new password"
@@ -855,7 +918,10 @@ const Profile = () => {
                   type="password"
                   value={passwordData.confirmPassword}
                   onChange={(e) =>
-                    setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+                    setPasswordData({
+                      ...passwordData,
+                      confirmPassword: e.target.value,
+                    })
                   }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
                   placeholder="Confirm new password"
@@ -872,7 +938,11 @@ const Profile = () => {
                 <button
                   onClick={() => {
                     setShowPasswordModal(false);
-                    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                    setPasswordData({
+                      currentPassword: "",
+                      newPassword: "",
+                      confirmPassword: "",
+                    });
                   }}
                   className="px-8 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-all duration-300"
                 >

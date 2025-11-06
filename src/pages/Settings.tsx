@@ -11,12 +11,23 @@ import {
   IconDownload,
   IconTrash,
   IconLogOut,
+  IconX,
+  IconCheck,
 } from "../components/Icons";
 import { useAuth } from "../contexts/AuthContext";
 import {
   getPatientProfile,
   updatePatientProfile,
+  getPatientAppointments,
+  getPatientInvoices,
 } from "../services/database-service";
+import { auth } from "../services/firebase-config";
+import {
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  deleteUser,
+} from "firebase/auth";
 
 interface ToggleSetting {
   id: string;
@@ -28,6 +39,16 @@ interface ToggleSetting {
 const Settings = () => {
   const { user, showToast, logout } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [deleteConfirmPassword, setDeleteConfirmPassword] = useState("");
+
   const [notifications, setNotifications] = useState<ToggleSetting[]>([
     {
       id: "email_notifications",
@@ -153,6 +174,157 @@ const Settings = () => {
     );
     // Auto-save after a short delay
     setTimeout(saveSettings, 500);
+  };
+
+  // Change Password Handler
+  const handleChangePassword = async () => {
+    if (
+      !passwordData.currentPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
+      showToast("Please fill in all password fields", "error");
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      showToast("New passwords don't match", "error");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      showToast("Password must be at least 6 characters", "error");
+      return;
+    }
+
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) {
+        showToast("No user logged in", "error");
+        return;
+      }
+
+      // Re-authenticate user
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        passwordData.currentPassword
+      );
+      await reauthenticateWithCredential(user, credential);
+
+      // Update password
+      await updatePassword(user, passwordData.newPassword);
+
+      showToast("Password changed successfully!", "success");
+      setShowPasswordModal(false);
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error: any) {
+      console.error("Error changing password:", error);
+      if (error.code === "auth/wrong-password") {
+        showToast("Current password is incorrect", "error");
+      } else {
+        showToast("Failed to change password", "error");
+      }
+    }
+  };
+
+  // Download Data Handler
+  const handleDownloadData = async () => {
+    if (!user?.uid) return;
+
+    try {
+      setLoading(true);
+      showToast("Preparing your data...", "info");
+
+      // Fetch all user data
+      const profile = await getPatientProfile(user.uid);
+      const appointments = await getPatientAppointments(user.uid);
+      const invoices = await getPatientInvoices(user.uid);
+
+      // Compile data
+      const userData = {
+        profile,
+        appointments,
+        invoices,
+        settings: {
+          notifications,
+          privacy,
+          appearance,
+        },
+        exportDate: new Date().toISOString(),
+      };
+
+      // Create downloadable JSON file
+      const dataStr = JSON.stringify(userData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `dermaglare-data-${
+        new Date().toISOString().split("T")[0]
+      }.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast("Data downloaded successfully!", "success");
+      setLoading(false);
+    } catch (error) {
+      console.error("Error downloading data:", error);
+      showToast("Failed to download data", "error");
+      setLoading(false);
+    }
+  };
+
+  // Delete Account Handler
+  const handleDeleteAccount = async () => {
+    if (!deleteConfirmPassword) {
+      showToast("Please enter your password to confirm", "error");
+      return;
+    }
+
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) {
+        showToast("No user logged in", "error");
+        return;
+      }
+
+      // Re-authenticate user
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        deleteConfirmPassword
+      );
+      await reauthenticateWithCredential(user, credential);
+
+      // Delete user account
+      await deleteUser(user);
+
+      showToast("Account deleted successfully", "success");
+      setShowDeleteModal(false);
+      // User will be logged out automatically
+    } catch (error: any) {
+      console.error("Error deleting account:", error);
+      if (error.code === "auth/wrong-password") {
+        showToast("Password is incorrect", "error");
+      } else {
+        showToast("Failed to delete account", "error");
+      }
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+      showToast("Signed out successfully", "success");
+    } catch (error) {
+      console.error("Error signing out:", error);
+      showToast("Failed to sign out", "error");
+    }
   };
 
   const ToggleSwitch: React.FC<{ enabled: boolean; onToggle: () => void }> = ({
@@ -317,7 +489,10 @@ const Settings = () => {
             </div>
 
             <div className="pt-6 border-t border-gray-200">
-              <button className="w-full bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2">
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="w-full bg-gradient-to-r from-brand-yellow to-orange-400 hover:from-orange-400 hover:to-brand-yellow text-brand-dark py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
+              >
                 <IconLock className="w-5 h-5" />
                 Change Password
               </button>
@@ -417,7 +592,9 @@ const Settings = () => {
 
             <div className="space-y-3">
               <button
-                className="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all duration-300 group animate-fade-in"
+                onClick={handleDownloadData}
+                disabled={loading}
+                className="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all duration-300 group animate-fade-in disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ animationDelay: "0.7s" }}
               >
                 <div className="flex items-center gap-3">
@@ -437,6 +614,7 @@ const Settings = () => {
               </button>
 
               <button
+                onClick={() => setShowPrivacyModal(true)}
                 className="w-full flex items-center justify-between p-4 bg-yellow-50 hover:bg-yellow-100 rounded-xl transition-all duration-300 group animate-fade-in"
                 style={{ animationDelay: "0.8s" }}
               >
@@ -457,6 +635,7 @@ const Settings = () => {
               </button>
 
               <button
+                onClick={() => setShowDeleteModal(true)}
                 className="w-full flex items-center justify-between p-4 bg-red-50 hover:bg-red-100 rounded-xl transition-all duration-300 group animate-fade-in"
                 style={{ animationDelay: "0.9s" }}
               >
@@ -477,6 +656,7 @@ const Settings = () => {
               </button>
 
               <button
+                onClick={handleSignOut}
                 className="w-full flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-brand-teal to-brand-dark text-white rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 animate-fade-in"
                 style={{ animationDelay: "1s" }}
               >
@@ -487,6 +667,286 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-scale-in">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-yellow to-orange-400 flex items-center justify-center">
+                  <IconLock className="w-5 h-5 text-white" />
+                </div>
+                Change Password
+              </h3>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <IconX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      currentPassword: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  placeholder="Enter current password"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      newPassword: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  placeholder="Enter new password (min 6 characters)"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none transition-all duration-300"
+                  placeholder="Confirm new password"
+                />
+              </div>
+
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={handleChangePassword}
+                  className="flex-1 bg-gradient-to-r from-brand-yellow to-orange-400 text-brand-dark py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+                >
+                  Change Password
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordData({
+                      currentPassword: "",
+                      newPassword: "",
+                      confirmPassword: "",
+                    });
+                  }}
+                  className="px-8 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-all duration-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-scale-in">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-red-600 flex items-center gap-2">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
+                  <IconTrash className="w-5 h-5 text-white" />
+                </div>
+                Delete Account
+              </h3>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <IconX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 mb-4">
+                <strong className="text-red-600">Warning:</strong> This action
+                cannot be undone. All your data, including appointments, medical
+                records, and billing information will be permanently deleted.
+              </p>
+              <p className="text-gray-600 text-sm">
+                Please enter your password to confirm account deletion.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={deleteConfirmPassword}
+                  onChange={(e) => setDeleteConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-red-500 outline-none transition-all duration-300"
+                  placeholder="Enter your password"
+                />
+              </div>
+
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={handleDeleteAccount}
+                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+                >
+                  Delete Account
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteConfirmPassword("");
+                  }}
+                  className="px-8 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-all duration-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Policy Modal */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6 shadow-2xl animate-scale-in">
+            <div className="flex items-center justify-between mb-6 sticky top-0 bg-white pb-4 border-b">
+              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
+                  <IconEye className="w-5 h-5 text-white" />
+                </div>
+                Privacy Policy
+              </h3>
+              <button
+                onClick={() => setShowPrivacyModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <IconX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6 text-gray-700">
+              <section>
+                <h4 className="text-xl font-bold text-gray-800 mb-3">
+                  Data Collection
+                </h4>
+                <p className="mb-2">
+                  We collect and process your personal health information to
+                  provide you with quality healthcare services. This includes:
+                </p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>
+                    Personal identification information (name, email, phone)
+                  </li>
+                  <li>Medical history and health records</li>
+                  <li>Appointment and consultation details</li>
+                  <li>Billing and payment information</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="text-xl font-bold text-gray-800 mb-3">
+                  Data Protection
+                </h4>
+                <p>
+                  Your data is encrypted both in transit and at rest. We use
+                  industry-standard security measures including SSL encryption,
+                  secure cloud storage, and regular security audits to protect
+                  your information.
+                </p>
+              </section>
+
+              <section>
+                <h4 className="text-xl font-bold text-gray-800 mb-3">
+                  Data Sharing
+                </h4>
+                <p>
+                  We do not sell your personal information. Your data is only
+                  shared with:
+                </p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>Healthcare providers involved in your care</li>
+                  <li>Payment processors for billing purposes</li>
+                  <li>Legal authorities when required by law</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="text-xl font-bold text-gray-800 mb-3">
+                  Your Rights
+                </h4>
+                <p className="mb-2">You have the right to:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>Access your personal data at any time</li>
+                  <li>Request correction of inaccurate data</li>
+                  <li>Request deletion of your account and data</li>
+                  <li>Export your data in a machine-readable format</li>
+                  <li>Opt-out of marketing communications</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="text-xl font-bold text-gray-800 mb-3">
+                  Contact Us
+                </h4>
+                <p>
+                  If you have any questions about our privacy practices, please
+                  contact us at{" "}
+                  <a
+                    href="mailto:privacy@dermaglare.com"
+                    className="text-brand-teal hover:underline"
+                  >
+                    privacy@dermaglare.com
+                  </a>
+                </p>
+              </section>
+
+              <div className="pt-4 border-t">
+                <p className="text-sm text-gray-600">
+                  Last updated: {new Date().toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t">
+              <button
+                onClick={() => setShowPrivacyModal(false)}
+                className="w-full bg-gradient-to-r from-brand-teal to-brand-dark text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
