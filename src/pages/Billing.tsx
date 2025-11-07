@@ -724,7 +724,7 @@ Thank you for choosing Dermaglare!
           },
           {
             label: "This Month",
-            amount: 600,
+            amount: thisMonth,
             icon: IconTrendingUp,
             color: "from-purple-500 to-violet-600",
             delay: "0.5s",
