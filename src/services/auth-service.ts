@@ -12,7 +12,17 @@ import {
   sendEmailVerification,
   User,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs,
+  limit,
+} from "firebase/firestore";
 import { auth, db, googleProvider } from "./firebase-config";
 
 /**
@@ -256,6 +266,16 @@ export const signupWithEmail = async (
     }
     console.log("Patient record verified in database");
 
+    // Send welcome email
+    try {
+      const { sendWelcomeEmail } = await import("./email-service");
+      await sendWelcomeEmail(email, displayName, userCredential.user.uid);
+      console.log("Welcome email sent successfully");
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+      // Don't throw error, signup was successful
+    }
+
     return userCredential.user;
   } catch (error: any) {
     console.error("Signup error:", error);
@@ -370,10 +390,35 @@ export const resetPassword = async (email: string) => {
       throw new Error(emailValidation.error);
     }
 
+    // Send Firebase password reset email
     await sendPasswordResetEmail(auth, email, {
       url: window.location.origin + "/login",
       handleCodeInApp: false,
     });
+
+    // Try to get user info and send notification email
+    try {
+      const { sendPasswordResetNotification } = await import("./email-service");
+      // Query Firestore to get patient name and ID
+      const patientsRef = collection(db, "patients");
+      const q = query(patientsRef, where("email", "==", email), limit(1));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const patientData = snapshot.docs[0].data();
+        const patientId = snapshot.docs[0].id;
+        const patientName = patientData.name || "Patient";
+
+        await sendPasswordResetNotification(email, patientName, patientId);
+        console.log("Password reset notification email sent successfully");
+      }
+    } catch (emailError) {
+      console.error(
+        "Failed to send password reset notification email:",
+        emailError
+      );
+      // Don't throw error, password reset was successful
+    }
 
     return {
       success: true,

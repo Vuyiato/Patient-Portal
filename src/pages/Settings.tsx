@@ -4,11 +4,9 @@ import {
   IconLock,
   IconShield,
   IconMoon,
-  IconGlobe,
   IconMail,
   IconPhone,
   IconEye,
-  IconDownload,
   IconTrash,
   IconLogOut,
   IconX,
@@ -266,55 +264,6 @@ const Settings = () => {
     }
   };
 
-  // Download Data Handler
-  const handleDownloadData = async () => {
-    if (!user?.uid) return;
-
-    try {
-      setLoading(true);
-      showToast("Preparing your data...", "info");
-
-      // Fetch all user data
-      const profile = await getPatientProfile(user.uid);
-      const appointments = await getPatientAppointments(user.uid);
-      const invoices = await getPatientInvoices(user.uid);
-
-      // Compile data
-      const userData = {
-        profile,
-        appointments,
-        invoices,
-        settings: {
-          notifications,
-          privacy,
-          appearance,
-        },
-        exportDate: new Date().toISOString(),
-      };
-
-      // Create downloadable JSON file
-      const dataStr = JSON.stringify(userData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `dermaglare-data-${
-        new Date().toISOString().split("T")[0]
-      }.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      showToast("Data downloaded successfully!", "success");
-      setLoading(false);
-    } catch (error) {
-      console.error("Error downloading data:", error);
-      showToast("Failed to download data", "error");
-      setLoading(false);
-    }
-  };
-
   // Delete Account Handler
   const handleDeleteAccount = async () => {
     if (!deleteConfirmPassword) {
@@ -414,11 +363,6 @@ const Settings = () => {
                   href: "#privacy",
                 },
                 { icon: IconMoon, label: "Appearance", href: "#appearance" },
-                {
-                  icon: IconGlobe,
-                  label: "Language & Region",
-                  href: "#language",
-                },
                 { icon: IconLock, label: "Account", href: "#account" },
               ].map((item, index) => (
                 <a
@@ -624,28 +568,6 @@ const Settings = () => {
             </div>
 
             <div className="space-y-3">
-              <button
-                onClick={handleDownloadData}
-                disabled={loading}
-                className="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all duration-300 group animate-fade-in disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ animationDelay: "0.7s" }}
-              >
-                <div className="flex items-center gap-3">
-                  <IconDownload className="w-5 h-5 text-blue-600" />
-                  <div className="text-left">
-                    <h4 className="font-semibold text-gray-800">
-                      Download Your Data
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      Export all your health records and data
-                    </p>
-                  </div>
-                </div>
-                <div className="text-blue-600 group-hover:translate-x-1 transition-transform duration-300">
-                  →
-                </div>
-              </button>
-
               <button
                 onClick={() => setShowPrivacyModal(true)}
                 className="w-full flex items-center justify-between p-4 bg-yellow-50 hover:bg-yellow-100 rounded-xl transition-all duration-300 group animate-fade-in"

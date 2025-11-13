@@ -12,6 +12,7 @@ import AppointmentsPage from "./pages/Appointments";
 import DocumentsPage from "./pages/Documents";
 import ChatPage from "./pages/Chat";
 import LoadingScreen from "./components/LoadingScreen";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const AppLayout = () => {
   const { user } = useAuth();
@@ -45,24 +46,28 @@ const PublicRoute: React.FC = () => {
 
 function App() {
   const { loading } = useAuth();
-  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
-
-  // Show loading screen on first mount
-  useEffect(() => {
-    // This ensures the loading screen shows once per session
-    const hasShownLoading = sessionStorage.getItem("hasShownLoading");
-    if (hasShownLoading) {
-      setShowLoadingScreen(false);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(() => {
+    // Check sessionStorage safely with try-catch
+    try {
+      const hasShown = sessionStorage.getItem("hasShownLoading");
+      return !hasShown; // Show if hasn't been shown yet
+    } catch (error) {
+      console.error("SessionStorage error:", error);
+      return false; // Skip loading screen if error
     }
-  }, []);
+  });
 
   const handleLoadingComplete = () => {
     setShowLoadingScreen(false);
-    sessionStorage.setItem("hasShownLoading", "true");
+    try {
+      sessionStorage.setItem("hasShownLoading", "true");
+    } catch (error) {
+      console.error("SessionStorage error:", error);
+    }
   };
 
   // Show custom loading screen on initial load
-  if (showLoadingScreen) {
+  if (showLoadingScreen && !loading) {
     return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
   }
 
@@ -78,12 +83,14 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route element={<PublicRoute />}>
-        <Route path="/login" element={<LoginPage />} />
-      </Route>
-      <Route path="/*" element={<ProtectedRoute />} />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route element={<PublicRoute />}>
+          <Route path="/login" element={<LoginPage />} />
+        </Route>
+        <Route path="/*" element={<ProtectedRoute />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }
 

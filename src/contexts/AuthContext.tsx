@@ -92,6 +92,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return unsubscribe;
   }, []);
 
+  // Auto-logout when browser/tab is closed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (user) {
+        // Sign out when closing browser/tab
+        firebaseLogout();
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [user]);
+
   const login = async (email: string, password: string) => {
     await loginWithEmail(email, password);
   };

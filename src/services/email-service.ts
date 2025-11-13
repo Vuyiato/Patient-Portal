@@ -13,7 +13,9 @@ export interface EmailNotification {
     | "payment_success"
     | "payment_failed"
     | "invoice_created"
-    | "cancellation_fee";
+    | "cancellation_fee"
+    | "welcome"
+    | "password_reset";
   patientId: string;
   relatedId?: string; // invoiceId or appointmentId
   sentAt: any;
@@ -294,6 +296,158 @@ This is an automated email. Please do not reply.
     return true;
   } catch (error) {
     console.error("Error sending cancellation fee email:", error);
+    return false;
+  }
+};
+
+/**
+ * Send welcome email on signup
+ */
+export const sendWelcomeEmail = async (
+  patientEmail: string,
+  patientName: string,
+  patientId: string
+): Promise<boolean> => {
+  try {
+    const subject = "Welcome to Dermaglare Skin & Laser Clinic!";
+    const body = `
+Dear ${patientName},
+
+Welcome to Dermaglare Skin & Laser Clinic! 🎉
+
+Thank you for registering with us. We're excited to have you as part of our community dedicated to exceptional skin health and beauty care.
+
+Your Patient Portal Account
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Email: ${patientEmail}
+Portal: ${window.location.origin}
+
+With your patient portal, you can:
+✓ Book and manage appointments 24/7
+✓ View and pay invoices online
+✓ Access your medical documents
+✓ Message our support team
+✓ Update your profile information
+✓ Track your health records
+
+Getting Started:
+1. Verify your email address (check your inbox)
+2. Complete your profile with medical information
+3. Book your first appointment
+4. Explore the dashboard features
+
+Our Services:
+• Medical Dermatology
+• Cosmetic Dermatology
+• Laser Treatments
+• Skin Surgery
+• Anti-Aging Treatments
+• Acne & Scar Treatment
+
+Need Help?
+Our team is here to assist you with any questions or concerns.
+📧 info@dermaglareskin.co.za
+📞 +27 11 234 5678
+🌐 www.dermaglareskin.co.za
+
+Office Hours:
+Monday - Friday: 8:00 AM - 5:00 PM
+Saturday: 9:00 AM - 1:00 PM
+Sunday: Closed
+
+We look forward to serving you and helping you achieve your skin health goals!
+
+Best regards,
+Dr. Jabu Nkehli & The Dermaglare Team
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated email. Please do not reply.
+    `.trim();
+
+    const emailData: Partial<EmailNotification> = {
+      to: patientEmail,
+      subject,
+      body,
+      type: "welcome",
+      patientId,
+      sentAt: serverTimestamp(),
+      status: "sent",
+    };
+
+    await addDoc(collection(db, "email_notifications"), emailData);
+
+    console.log("✅ Welcome email sent to:", patientEmail);
+    return true;
+  } catch (error) {
+    console.error("Error sending welcome email:", error);
+    return false;
+  }
+};
+
+/**
+ * Send password reset email
+ */
+export const sendPasswordResetNotification = async (
+  patientEmail: string,
+  patientName: string,
+  patientId: string
+): Promise<boolean> => {
+  try {
+    const subject = "Password Reset Request - Dermaglare Patient Portal";
+    const body = `
+Dear ${patientName},
+
+We received a request to reset your password for your Dermaglare Patient Portal account.
+
+Account Information:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Email: ${patientEmail}
+Request Time: ${new Date().toLocaleString("en-ZA", {
+      timeZone: "Africa/Johannesburg",
+    })}
+
+A password reset email has been sent to your email address from Firebase Authentication. Please check your inbox and follow the instructions to reset your password.
+
+If you didn't request this password reset:
+• Your account is still secure
+• No changes have been made
+• You can safely ignore this email
+• Consider changing your password if you're concerned
+
+Security Tips:
+✓ Use a strong, unique password
+✓ Never share your password
+✓ Enable two-factor authentication
+✓ Log out from shared devices
+✓ Keep your email secure
+
+If you have any concerns about your account security, please contact us immediately:
+📧 info@dermaglareskin.co.za
+📞 +27 11 234 5678
+
+Best regards,
+Dermaglare Security Team
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated email. Please do not reply.
+    `.trim();
+
+    const emailData: Partial<EmailNotification> = {
+      to: patientEmail,
+      subject,
+      body,
+      type: "password_reset",
+      patientId,
+      sentAt: serverTimestamp(),
+      status: "sent",
+    };
+
+    await addDoc(collection(db, "email_notifications"), emailData);
+
+    console.log("✅ Password reset notification email sent to:", patientEmail);
+    return true;
+  } catch (error) {
+    console.error("Error sending password reset notification email:", error);
     return false;
   }
 };
