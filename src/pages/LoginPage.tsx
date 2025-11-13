@@ -10,6 +10,8 @@ import {
   IconCheck,
   IconArrowRight,
   IconCheckCircle,
+  IconEye,
+  IconEyeOff,
 } from "../components/Icons";
 import Button from "../components/Button";
 import Input from "../components/Input";
@@ -75,6 +77,8 @@ const LoginPage: FC = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<{
     password?: string;
     confirmPassword?: string;
@@ -293,17 +297,45 @@ const LoginPage: FC = () => {
                 className="animate-slide-up"
                 style={{ animationDelay: "200ms" }}
               >
-                <Input
-                  id="password"
-                  label="Password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  icon={<IconLock />}
-                  error={errors.password}
-                  required
-                />
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium mb-2 text-gray-700"
+                >
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <IconLock className="w-5 h-5" />
+                  </div>
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className={`
+                      w-full pl-10 pr-10 py-3 border-2 rounded-lg
+                      focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent
+                      transition-all duration-300
+                      ${errors.password ? "border-red-500" : "border-gray-300"}
+                    `}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-brand-teal transition-colors"
+                  >
+                    {showPassword ? (
+                      <IconEyeOff className="w-5 h-5" />
+                    ) : (
+                      <IconEye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                )}
               </div>
 
               {/* Confirm Password Field (Only for Signup) */}
@@ -312,17 +344,53 @@ const LoginPage: FC = () => {
                   className="animate-slide-up"
                   style={{ animationDelay: "250ms" }}
                 >
-                  <Input
-                    id="confirmPassword"
-                    label="Confirm Password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    icon={<IconLock />}
-                    error={errors.confirmPassword}
-                    required
-                  />
+                  <label
+                    htmlFor="confirmPassword"
+                    className="block text-sm font-medium mb-2 text-gray-700"
+                  >
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                      <IconLock className="w-5 h-5" />
+                    </div>
+                    <input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      className={`
+                        w-full pl-10 pr-10 py-3 border-2 rounded-lg
+                        focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent
+                        transition-all duration-300
+                        ${
+                          errors.confirmPassword
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }
+                      `}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-brand-teal transition-colors"
+                    >
+                      {showConfirmPassword ? (
+                        <IconEyeOff className="w-5 h-5" />
+                      ) : (
+                        <IconEye className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.confirmPassword}
+                    </p>
+                  )}
                 </div>
               )}
 
