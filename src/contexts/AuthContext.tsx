@@ -31,6 +31,7 @@ interface AuthContextType {
     displayName: string
   ) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   showToast: (message: string, type?: "success" | "error" | "info") => void;
   toasts: Toast[];
   removeToast: (id: string) => void;
@@ -124,6 +125,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await firebaseLogout();
   };
 
+  const refreshUser = async () => {
+    if (!user) return;
+
+    try {
+      const patientData = await getPatientProfile(user.uid);
+      if (patientData) {
+        setUser({
+          ...user,
+          displayName: patientData.name || user.displayName || "Patient",
+          photoURL:
+            patientData.photoURL ||
+            user.photoURL ||
+            `https://ui-avatars.com/api/?name=${
+              patientData.name || "P"
+            }&background=F4E48E&color=3A565B`,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to refresh user data:", error);
+    }
+  };
+
   const showToast = useCallback(
     (message: string, type: "success" | "error" | "info" = "info") => {
       const id = Math.random().toString(36).substr(2, 9);
@@ -143,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     login,
     signup,
     logout,
+    refreshUser,
     showToast,
     toasts,
     removeToast,

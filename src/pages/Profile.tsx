@@ -22,14 +22,15 @@ import {
 import {
   updatePassword,
   updateEmail,
+  updateProfile,
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "../services/firebase-config";
+import { storage, auth } from "../services/firebase-config";
 
 const Profile = () => {
-  const { user, showToast } = useAuth();
+  const { user, showToast, refreshUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingMedical, setIsEditingMedical] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -143,8 +144,25 @@ const Profile = () => {
         photoURL: profileData.photoURL,
       };
 
+      // Update Firestore patient profile
       await updatePatientProfile(user.uid, updateData);
+
+      // Update Firebase Auth displayName if name changed
+      if (
+        auth.currentUser &&
+        profileData.name &&
+        profileData.name !== user.displayName
+      ) {
+        await updateProfile(auth.currentUser, {
+          displayName: profileData.name,
+        });
+      }
+
       setIsEditing(false);
+
+      // Refresh user data in AuthContext to update display name
+      await refreshUser();
+
       showToast("Profile updated successfully! ✅", "success");
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -174,6 +192,10 @@ const Profile = () => {
 
       await updatePatientProfile(user.uid, updateData);
       setIsEditingMedical(false);
+
+      // Refresh user data in AuthContext
+      await refreshUser();
+
       showToast("Medical information updated successfully! ✅", "success");
     } catch (error) {
       console.error("Error saving medical info:", error);
@@ -223,6 +245,10 @@ const Profile = () => {
       await updatePatientProfile(user.uid, updateData);
 
       setProfileData((prev) => ({ ...prev, photoURL: downloadURL }));
+
+      // Refresh user data in AuthContext to update avatar
+      await refreshUser();
+
       showToast("Profile picture updated successfully! 📸", "success");
     } catch (error) {
       console.error("Error uploading profile picture:", error);
