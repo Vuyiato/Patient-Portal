@@ -390,11 +390,18 @@ export const resetPassword = async (email: string) => {
       throw new Error(emailValidation.error);
     }
 
+    console.log("🔄 Attempting to send password reset email to:", email);
+
     // Send Firebase password reset email
     await sendPasswordResetEmail(auth, email, {
       url: window.location.origin + "/login",
       handleCodeInApp: false,
     });
+
+    console.log(
+      "✅ Firebase password reset email sent successfully to:",
+      email
+    );
 
     // Try to get user info and send notification email
     try {
@@ -410,22 +417,24 @@ export const resetPassword = async (email: string) => {
         const patientName = patientData.name || "Patient";
 
         await sendPasswordResetNotification(email, patientName, patientId);
-        console.log("Password reset notification email sent successfully");
+        console.log("✅ Password reset notification logged to Firestore");
+      } else {
+        console.log("⚠️ No patient record found for email:", email);
       }
     } catch (emailError) {
       console.error(
-        "Failed to send password reset notification email:",
+        "⚠️ Failed to log password reset notification to Firestore:",
         emailError
       );
-      // Don't throw error, password reset was successful
+      // Don't throw error, Firebase password reset was successful
     }
 
     return {
       success: true,
-      message: `Password reset email sent to ${email}. Please check your inbox.`,
+      message: `Password reset email sent to ${email}. Please check your inbox and spam folder.`,
     };
   } catch (error: any) {
-    console.error("Password reset error:", error);
+    console.error("❌ Password reset error:", error);
     throw new Error(getAuthErrorMessage(error.code));
   }
 };
