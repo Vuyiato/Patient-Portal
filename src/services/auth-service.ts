@@ -392,11 +392,8 @@ export const resetPassword = async (email: string) => {
 
     console.log("🔄 Attempting to send password reset email to:", email);
 
-    // Send Firebase password reset email
-    await sendPasswordResetEmail(auth, email, {
-      url: window.location.origin + "/login",
-      handleCodeInApp: false,
-    });
+    // Send Firebase password reset email (using default settings)
+    await sendPasswordResetEmail(auth, email);
 
     console.log(
       "✅ Firebase password reset email sent successfully to:",
