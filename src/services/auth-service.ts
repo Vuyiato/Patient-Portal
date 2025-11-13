@@ -225,13 +225,10 @@ export const signupWithEmail = async (
     );
     console.log("User account created with UID:", userCredential.user.uid);
 
-    // Send email verification
-    console.log("Sending verification email...");
-    await sendEmailVerification(userCredential.user, {
-      url: window.location.origin + "/dashboard",
-      handleCodeInApp: false,
-    });
-    console.log("Verification email sent successfully");
+    // Send email verification (welcome email)
+    console.log("Sending verification/welcome email...");
+    await sendEmailVerification(userCredential.user);
+    console.log("✅ Welcome/verification email sent successfully to:", email);
 
     // Update profile with display name
     console.log("Updating user profile...");

@@ -1,30 +1,49 @@
-# 📧 Email Setup Guide - Password Reset Email Issues
+# 📧 Email Setup Guide - Welcome & Password Reset Emails
 
-## Current Status
+## Current Status ✅
 
-Your Patient Portal uses **Firebase Authentication's built-in password reset email** functionality. The code is correctly implemented, but emails may not be sending due to Firebase Console configuration.
+Your Patient Portal successfully sends:
 
-## 🔍 Why Emails Might Not Be Sending
+- ✅ **Welcome emails** when new users sign up (via Firebase Email Verification)
+- ✅ **Password reset emails** when users request password reset
 
-### 1. **Firebase Email Templates Not Configured**
-
-Firebase Authentication sends emails by default, BUT they might be:
-
-- Going to spam folder
-- Blocked by email provider
-- Using Firebase's default sender (noreply@dermaglareapp.firebaseapp.com)
-
-### 2. **Email Going to Spam**
+## 🚨 Preventing Emails from Going to Spam
 
 Firebase's default emails often end up in spam because:
 
+- Generic sender address (`noreply@dermaglareapp.firebaseapp.com`)
 - No custom domain authentication
-- Generic sender address
 - No SPF/DKIM records
+- Lack of email engagement history
 
-### 3. **User Email Not Verified**
+### Quick Fixes (Immediate)
 
-Firebase might not send password reset emails if the user's email isn't in the authentication system.
+#### 1. **Customize Firebase Email Templates**
+
+Make emails look more professional and less like spam:
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Select **dermaglareapp** project
+3. Navigate to **Authentication** → **Templates**
+4. Customize each template:
+   - **Email verification** (Welcome email)
+   - **Password reset**
+
+#### 2. **Ask Users to Whitelist Your Email**
+
+Add this to your welcome message or signup confirmation:
+
+- "To ensure you receive all emails, add `noreply@dermaglareapp.firebaseapp.com` to your contacts"
+- Display this message in the dashboard or after signup
+
+#### 3. **User Education**
+
+Add a banner after signup/password reset:
+
+```
+📧 Email sent! Please check your spam folder if you don't see it in your inbox.
+Add noreply@dermaglareapp.firebaseapp.com to your contacts to prevent this in the future.
+```
 
 ---
 
