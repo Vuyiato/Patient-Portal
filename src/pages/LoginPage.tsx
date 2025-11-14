@@ -72,6 +72,8 @@ const LoginPage: FC = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -122,7 +124,16 @@ const LoginPage: FC = () => {
           return;
         }
 
-        await signup(email, password, displayName);
+        // Use firstName and lastName if provided, otherwise fallback to displayName
+        const finalFirstName =
+          firstName || displayName.split(" ")[0] || displayName;
+        const finalLastName =
+          lastName || displayName.split(" ").slice(1).join(" ") || "";
+
+        await signup(email, password, displayName, {
+          firstName: finalFirstName,
+          lastName: finalLastName,
+        });
         showToast(
           "Account created successfully! 🎊 Please check your email to verify your account.",
           "success"
@@ -265,16 +276,34 @@ const LoginPage: FC = () => {
             {/* Form Section */}
             <form onSubmit={handleSubmit} className="space-y-5">
               {!isLogin && (
-                <div className="animate-slide-up">
-                  <Input
-                    id="displayName"
-                    label="Full Name"
-                    placeholder="Jane Doe"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    icon={<IconUser />}
-                  />
-                </div>
+                <>
+                  <div className="animate-slide-up grid grid-cols-2 gap-3">
+                    <Input
+                      id="firstName"
+                      label="First Name"
+                      placeholder="Jane"
+                      value={firstName}
+                      onChange={(e) => {
+                        setFirstName(e.target.value);
+                        setDisplayName(`${e.target.value} ${lastName}`.trim());
+                      }}
+                      icon={<IconUser />}
+                      required
+                    />
+                    <Input
+                      id="lastName"
+                      label="Last Name"
+                      placeholder="Doe"
+                      value={lastName}
+                      onChange={(e) => {
+                        setLastName(e.target.value);
+                        setDisplayName(`${firstName} ${e.target.value}`.trim());
+                      }}
+                      icon={<IconUser />}
+                      required
+                    />
+                  </div>
+                </>
               )}
 
               <div

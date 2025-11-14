@@ -28,7 +28,8 @@ interface AuthContextType {
   signup: (
     email: string,
     password: string,
-    displayName: string
+    displayName: string,
+    additionalData?: any
   ) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -116,9 +117,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (
     email: string,
     password: string,
-    displayName: string
+    displayName: string,
+    additionalData?: any
   ) => {
-    await signupWithEmail(email, password, displayName);
+    await signupWithEmail(email, password, displayName, additionalData);
   };
 
   const logout = async () => {

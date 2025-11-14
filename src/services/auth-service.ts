@@ -237,10 +237,20 @@ export const signupWithEmail = async (
     });
     console.log("Profile updated successfully");
 
-    // Create patient record in Firestore
+    // Extract firstName and lastName from additionalData or displayName
+    const firstName =
+      additionalData?.firstName || displayName.split(" ")[0] || displayName;
+    const lastName =
+      additionalData?.lastName ||
+      displayName.split(" ").slice(1).join(" ") ||
+      "";
+
+    // Create patient record in Firestore (patients collection)
     console.log("Creating patient record in Firestore...");
     const patientData = {
       name: displayName,
+      firstName: firstName,
+      lastName: lastName,
       email: email,
       createdAt: serverTimestamp(),
       lastVisit: serverTimestamp(),
@@ -252,6 +262,24 @@ export const signupWithEmail = async (
 
     await setDoc(doc(db, "patients", userCredential.user.uid), patientData);
     console.log("Patient record created successfully");
+
+    // ALSO create user record in users collection (for Admin App compatibility)
+    console.log("Creating user record in users collection...");
+    const userData = {
+      id: userCredential.user.uid,
+      uid: userCredential.user.uid,
+      email: email,
+      firstName: firstName,
+      lastName: lastName,
+      displayName: displayName,
+      role: "patient",
+      isActive: true,
+      authMethod: "email",
+      createdAt: serverTimestamp(),
+    };
+
+    await setDoc(doc(db, "users", userCredential.user.uid), userData);
+    console.log("✅ User record created in users collection for Admin App");
 
     // Verify the document was created
     const verifyDoc = await getDoc(

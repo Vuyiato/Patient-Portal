@@ -535,16 +535,47 @@ export const getOrCreateChat = async (
       return snapshot.docs[0].id;
     }
 
-    // Create new chat
+    // Fetch real patient name from users collection
+    let realPatientName = patientName;
+    try {
+      const userDoc = await getDoc(doc(db, "users", patientId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.firstName && userData.lastName) {
+          realPatientName = `${userData.firstName} ${userData.lastName}`;
+        } else if (userData.firstName) {
+          realPatientName = userData.firstName;
+        } else if (userData.displayName) {
+          realPatientName = userData.displayName;
+        }
+        console.log("✅ Fetched real patient name:", realPatientName);
+      } else {
+        // Fallback to patients collection
+        const patientDoc = await getDoc(doc(db, "patients", patientId));
+        if (patientDoc.exists()) {
+          const patientData = patientDoc.data();
+          if (patientData.firstName && patientData.lastName) {
+            realPatientName = `${patientData.firstName} ${patientData.lastName}`;
+          } else if (patientData.name) {
+            realPatientName = patientData.name;
+          }
+        }
+      }
+    } catch (nameError) {
+      console.warn("Could not fetch patient name, using fallback:", nameError);
+    }
+
+    // Create new chat with real patient name
     const chatRef = await addDoc(collection(db, "chats"), {
       patientId,
-      patientName,
+      patientName: realPatientName,
       lastMessageText: "",
       lastMessageTimestamp: serverTimestamp(),
       unreadByPatient: 0,
       unreadByAdmin: false,
     });
 
+    console.log("✅ Chat created with patient name:", realPatientName);
     return chatRef.id;
   } catch (error) {
     console.error("Error getting/creating chat:", error);
