@@ -97,6 +97,7 @@ export const getChatRecipient = async (
   recipientRole: "patient" | "admin" | "doctor";
 } | null> => {
   try {
+    console.log("🔍 Getting recipient for chat:", { chatId, senderId });
     const chatDoc = await getDoc(doc(db, "chats", chatId));
 
     if (!chatDoc.exists()) {
@@ -105,9 +106,15 @@ export const getChatRecipient = async (
     }
 
     const chatData = chatDoc.data();
+    console.log("📋 Chat data:", {
+      patientId: chatData.patientId,
+      userId: chatData.userId,
+      senderId,
+    });
 
     // If sender is patient, recipient is admin
     if (senderId === chatData.patientId || senderId === chatData.userId) {
+      console.log("✅ Sender is patient, recipient is admin");
       return {
         recipientId: "admin", // Admin will see all patient messages
         recipientRole: "admin",
@@ -116,13 +123,23 @@ export const getChatRecipient = async (
 
     // If sender is admin/doctor, recipient is patient
     if (senderId === "admin" || senderId === "doctor") {
+      const recipientId = chatData.patientId || chatData.userId;
+      console.log(
+        "✅ Sender is admin/doctor, recipient is patient:",
+        recipientId
+      );
       return {
-        recipientId: chatData.patientId || chatData.userId,
+        recipientId,
         recipientRole: "patient",
       };
     }
 
-    console.warn("⚠️ Could not determine recipient for chat:", chatId);
+    console.warn(
+      "⚠️ Could not determine recipient for chat:",
+      chatId,
+      "senderId:",
+      senderId
+    );
     return null;
   } catch (error) {
     console.error("❌ Error getting chat recipient:", error);
