@@ -135,6 +135,11 @@ const Appointments = () => {
     try {
       setBookingLoading(true);
 
+      // Get service price dynamically
+      const { getServicePrice } = await import("../billing-service");
+      const selectedService = getServicePrice(bookingForm.type);
+      const serviceAmount = selectedService?.basePrice || 0;
+
       // Create appointment data
       const appointmentData = {
         patientId: user.uid,
@@ -146,9 +151,11 @@ const Appointments = () => {
         status: "Pending" as const,
         doctorName: bookingForm.doctorName,
         notes: bookingForm.notes,
+        amount: serviceAmount, // ✅ ADD AMOUNT FIELD
       };
 
       console.log("Appointment data to save:", appointmentData);
+      console.log("Service amount:", serviceAmount);
 
       // Book appointment in Firebase
       const appointmentId = await bookAppointment(appointmentData);
