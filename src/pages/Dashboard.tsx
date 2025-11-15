@@ -177,7 +177,14 @@ const Dashboard = () => {
 
         // Add recent appointments
         appointmentsData
-          .filter((apt) => apt.status === "Confirmed")
+          .filter(
+            (apt) =>
+              apt.status === "Confirmed" ||
+              apt.status === "confirmed" ||
+              apt.status === "upcoming" ||
+              (apt.status as string)?.toLowerCase() === "confirmed" ||
+              (apt.status as string)?.toLowerCase() === "upcoming"
+          )
           .slice(0, 2)
           .forEach((apt) => {
             const aptDate = apt.createdAt
@@ -232,10 +239,18 @@ const Dashboard = () => {
 
   // Calculate stats from real data
   const upcomingAppointments = appointments.filter(
-    (apt) => apt.status === "Pending" || apt.status === "Confirmed"
+    (apt) =>
+      apt.status === "Pending" ||
+      apt.status === "Confirmed" ||
+      apt.status === "upcoming" ||
+      (apt.status as string)?.toLowerCase() === "pending" ||
+      (apt.status as string)?.toLowerCase() === "confirmed"
   );
   const completedVisits = appointments.filter(
-    (apt) => apt.status === "Completed"
+    (apt) =>
+      apt.status === "Completed" ||
+      apt.status === "completed" ||
+      (apt.status as string)?.toLowerCase() === "completed"
   ).length;
 
   const stats = [
