@@ -191,8 +191,10 @@ const Chat = () => {
       // Clear input immediately for better UX
       setMessage("");
 
-      // Send message to Firebase
-      await sendMessage(chatId, user.uid, messageText);
+      // Send message to Firebase with sender name for notifications
+      const senderName =
+        user.displayName || user.email?.split("@")[0] || "Patient";
+      await sendMessage(chatId, user.uid, messageText, senderName);
 
       // Scroll to bottom
       scrollToBottom();

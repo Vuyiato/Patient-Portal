@@ -658,7 +658,8 @@ export const getChatMessages = async (chatId: string): Promise<Message[]> => {
 export const sendMessage = async (
   chatId: string,
   senderId: string,
-  text: string
+  text: string,
+  senderName?: string
 ): Promise<string> => {
   try {
     // Add message to subcollection
@@ -678,6 +679,23 @@ export const sendMessage = async (
       lastMessageTimestamp: serverTimestamp(),
       unreadByAdmin: senderId !== "admin",
     });
+
+    // Send notification to recipient
+    try {
+      const { notifyMessageRecipient } = await import(
+        "./message-notification-service"
+      );
+      await notifyMessageRecipient(
+        chatId,
+        senderId,
+        senderName || "Patient",
+        "patient",
+        text
+      );
+    } catch (notifError) {
+      console.warn("⚠️ Failed to send message notification:", notifError);
+      // Don't throw - notification failure shouldn't break message sending
+    }
 
     return messageRef.id;
   } catch (error) {

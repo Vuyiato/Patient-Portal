@@ -21,13 +21,14 @@ import { db } from "./firebase-config";
 export interface Notification {
   id: string;
   userId: string;
-  userEmail: string;
+  userEmail?: string;
   userName?: string;
   type:
     | "appointment_approved"
     | "appointment_declined"
     | "appointment_cancelled"
     | "payment_received"
+    | "new_message"
     | "general_message";
   title: string;
   message: string;
@@ -36,6 +37,8 @@ export interface Notification {
     appointmentId?: string;
     invoiceId?: string;
     chatId?: string;
+    senderId?: string;
+    senderRole?: string;
   };
   read: boolean;
   readAt?: Timestamp | null;
@@ -231,6 +234,8 @@ export const getNotificationIcon = (type: Notification["type"]): string => {
       return "🗓️";
     case "payment_received":
       return "💰";
+    case "new_message":
+      return "💬";
     case "general_message":
       return "📩";
     default:
