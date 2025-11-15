@@ -55,6 +55,8 @@ export const subscribeToNotifications = (
   limitCount: number = 20
 ): (() => void) => {
   try {
+    console.log("🔔 Subscribing to notifications for user:", userId);
+
     const notificationsQuery = query(
       collection(db, "notifications"),
       where("userId", "==", userId),
@@ -65,21 +67,35 @@ export const subscribeToNotifications = (
     const unsubscribe = onSnapshot(
       notificationsQuery,
       (snapshot) => {
+        console.log("📬 Notification snapshot received:", {
+          size: snapshot.size,
+          empty: snapshot.empty,
+          docs: snapshot.docs.length,
+        });
+
         const notifications = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as Notification[];
 
+        if (notifications.length > 0) {
+          console.log("✅ Notifications found:", notifications.length);
+          console.log("First notification:", notifications[0]);
+        } else {
+          console.log("ℹ️ No notifications found for this user");
+        }
+
         onNotificationsUpdate(notifications);
       },
       (error) => {
-        console.error("Error listening to notifications:", error);
+        console.error("❌ Error listening to notifications:", error);
       }
     );
 
+    console.log("✅ Notification listener setup complete");
     return unsubscribe;
   } catch (error) {
-    console.error("Error setting up notifications listener:", error);
+    console.error("❌ Error setting up notifications listener:", error);
     return () => {}; // Return empty function if setup fails
   }
 };
