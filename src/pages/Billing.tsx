@@ -27,13 +27,11 @@ interface Invoice extends BillingInvoice {
 interface PaymentModalProps {
   invoice: Invoice | null;
   onClose: () => void;
-  onSuccess: () => void;
-}
-
-interface PaymentModalProps {
-  invoice: Invoice | null;
-  onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (
+    appointmentId?: string,
+    transactionId?: string,
+    method?: string
+  ) => void;
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -130,7 +128,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             "success"
           );
           setTimeout(() => {
-            onSuccess();
+            onSuccess(
+              invoice.appointmentId,
+              result.transactionId,
+              paymentMethod
+            );
             onClose();
           }, 1000);
         } else {
@@ -170,7 +172,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
         showToast("Cash payment recorded successfully", "success");
         setTimeout(() => {
-          onSuccess();
+          onSuccess(invoice.appointmentId, `CASH-${Date.now()}`, paymentMethod);
           onClose();
         }, 1000);
       }
@@ -623,7 +625,8 @@ const Billing = () => {
 
   const handlePaymentSuccess = async (
     appointmentId?: string,
-    transactionId?: string
+    transactionId?: string,
+    method?: string
   ) => {
     // Refresh invoices list
     fetchInvoices();
@@ -638,7 +641,7 @@ const Billing = () => {
         await updateAppointmentPaymentStatus(appointmentId, {
           transactionId: transactionId,
           amount: selectedInvoice?.amount || 0,
-          method: paymentMethod || "card", // Use actual payment method from state
+          method: method || "card", // Use payment method from parameter
         });
         console.log("✅ Appointment payment status updated to 'paid'");
         showToast("Payment confirmed and appointment updated", "success");
