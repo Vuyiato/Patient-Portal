@@ -41,6 +41,11 @@ export interface Appointment {
   doctorId?: string;
   doctorName?: string;
   notes?: string;
+  amount?: number; // Service price - CRITICAL for admin display
+  paymentStatus?: "pending" | "paid" | "refunded";
+  paymentMethod?: string;
+  paymentTransactionId?: string;
+  paidAt?: any;
   createdAt?: any;
 }
 
@@ -112,14 +117,6 @@ export const bookAppointment = async (
     console.log("bookAppointment called with:", appointmentData);
     console.log("Firebase db instance:", db);
 
-    // Create appointment
-    const docRef = await addDoc(collection(db, "appointments"), {
-      ...appointmentData,
-      createdAt: serverTimestamp(),
-    });
-
-    console.log("Document created with ID:", docRef.id);
-
     // Import billing service dynamically to avoid circular dependency
     const { getServicePrice } = await import("../billing-service");
 
@@ -128,6 +125,20 @@ export const bookAppointment = async (
       basePrice: 500,
       name: appointmentData.type,
     };
+
+    // Create appointment with amount field
+    const docRef = await addDoc(collection(db, "appointments"), {
+      ...appointmentData,
+      amount: servicePrice.basePrice, // CRITICAL: Include amount for admin display
+      paymentStatus: "pending", // Will be updated to "paid" after payment
+      paymentMethod: "",
+      paymentTransactionId: "",
+      paidAt: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    console.log("Document created with ID:", docRef.id);
 
     // Create invoice for the appointment
     const invoiceData = {
@@ -288,6 +299,39 @@ export const subscribeToAppointments = (
     );
     callback(appointments);
   });
+};
+
+/**
+ * Update appointment payment status after successful payment
+ * Call this function after payment gateway confirms payment
+ */
+export const updateAppointmentPaymentStatus = async (
+  appointmentId: string,
+  paymentDetails: {
+    transactionId: string;
+    amount: number;
+    method: string;
+  }
+): Promise<void> => {
+  try {
+    const appointmentRef = doc(db, "appointments", appointmentId);
+
+    await updateDoc(appointmentRef, {
+      paymentStatus: "paid",
+      paymentMethod: paymentDetails.method,
+      paymentTransactionId: paymentDetails.transactionId,
+      paidAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    console.log(
+      `✅ Payment status updated for appointment ${appointmentId}:`,
+      paymentDetails
+    );
+  } catch (error) {
+    console.error("Error updating payment status:", error);
+    throw error;
+  }
 };
 
 // ==================== DOCUMENTS ====================

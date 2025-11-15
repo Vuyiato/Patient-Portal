@@ -11,6 +11,7 @@ import SettingsPage from "./pages/Settings";
 import AppointmentsPage from "./pages/Appointments";
 import DocumentsPage from "./pages/Documents";
 import ChatPage from "./pages/Chat";
+import NotificationsPage from "./pages/Notifications";
 import LoadingScreen from "./components/LoadingScreen";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -26,6 +27,7 @@ const AppLayout = () => {
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="billing" element={<BillingPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

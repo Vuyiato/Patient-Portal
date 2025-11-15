@@ -621,8 +621,27 @@ const Billing = () => {
     setShowPaymentModal(true);
   };
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = async (
+    appointmentId?: string,
+    transactionId?: string
+  ) => {
+    // Refresh invoices list
     fetchInvoices();
+
+    // 💡 PAYMENT INTEGRATION: Update appointment payment status
+    // If this invoice is related to an appointment, update the appointment's paymentStatus
+    // Uncomment and use when payment gateway provides transaction details:
+    /*
+    if (appointmentId && transactionId) {
+      const { updateAppointmentPaymentStatus } = await import("../services/database-service");
+      await updateAppointmentPaymentStatus(appointmentId, {
+        transactionId: transactionId,
+        amount: selectedInvoice?.amount || 0,
+        method: "card", // or "eft", "cash" based on payment method
+      });
+      console.log("✅ Appointment payment status updated");
+    }
+    */
   };
 
   const handleDownloadInvoice = (invoice: Invoice) => {
