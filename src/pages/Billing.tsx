@@ -27,11 +27,7 @@ interface Invoice extends BillingInvoice {
 interface PaymentModalProps {
   invoice: Invoice | null;
   onClose: () => void;
-  onSuccess: (
-    appointmentId?: string,
-    transactionId?: string,
-    method?: string
-  ) => void;
+  onSuccess: () => void;
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -128,11 +124,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             "success"
           );
           setTimeout(() => {
-            onSuccess(
-              invoice.appointmentId,
-              result.transactionId,
-              paymentMethod
-            );
+            onSuccess();
             onClose();
           }, 1000);
         } else {
@@ -172,7 +164,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
         showToast("Cash payment recorded successfully", "success");
         setTimeout(() => {
-          onSuccess(invoice.appointmentId, `CASH-${Date.now()}`, paymentMethod);
+          onSuccess();
           onClose();
         }, 1000);
       }
@@ -623,33 +615,9 @@ const Billing = () => {
     setShowPaymentModal(true);
   };
 
-  const handlePaymentSuccess = async (
-    appointmentId?: string,
-    transactionId?: string,
-    method?: string
-  ) => {
+  const handlePaymentSuccess = async () => {
     // Refresh invoices list
     fetchInvoices();
-
-    // ✅ PAYMENT INTEGRATION: Update appointment payment status
-    // If this invoice is related to an appointment, update the appointment's paymentStatus
-    if (appointmentId && transactionId) {
-      try {
-        const { updateAppointmentPaymentStatus } = await import(
-          "../services/database-service"
-        );
-        await updateAppointmentPaymentStatus(appointmentId, {
-          transactionId: transactionId,
-          amount: selectedInvoice?.amount || 0,
-          method: method || "card", // Use payment method from parameter
-        });
-        console.log("✅ Appointment payment status updated to 'paid'");
-        showToast("Payment confirmed and appointment updated", "success");
-      } catch (error) {
-        console.error("Error updating appointment payment status:", error);
-        // Don't throw - payment was successful, just logging failed
-      }
-    }
   };
 
   const handleDownloadInvoice = (invoice: Invoice) => {
