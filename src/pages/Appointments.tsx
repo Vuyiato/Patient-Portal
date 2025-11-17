@@ -33,6 +33,8 @@ interface Appointment {
 }
 
 const Appointments = () => {
+  console.log("🎯 APPOINTMENTS COMPONENT LOADED - v2");
+
   const { user, showToast } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -42,6 +44,8 @@ const Appointments = () => {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  console.log("🔍 Current user:", user?.uid || "No user");
 
   // Booking form state
   const [bookingForm, setBookingForm] = useState({
@@ -55,11 +59,16 @@ const Appointments = () => {
   // Fetch appointments from Firebase
   useEffect(() => {
     const fetchAppointments = async () => {
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
+        console.log("Fetching appointments for user:", user.uid);
         const data = await getPatientAppointments(user.uid);
+        console.log("Received appointments data:", data);
 
         // Transform Firebase data to match our interface
         const transformedData: Appointment[] = data.map((apt) => {
@@ -81,11 +90,13 @@ const Appointments = () => {
           };
         });
 
+        console.log("Transformed appointments:", transformedData);
         setAppointments(transformedData);
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching appointments:", error);
-        showToast("Failed to load appointments", "error");
-      } finally {
+        console.error("Error details:", error instanceof Error ? error.message : String(error));
+        showToast(`Failed to load appointments: ${error instanceof Error ? error.message : 'Unknown error'}`, "error");
         setLoading(false);
       }
     };

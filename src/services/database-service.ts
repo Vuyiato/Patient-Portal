@@ -65,20 +65,54 @@ export const getPatientAppointments = async (
   patientId: string
 ): Promise<Appointment[]> => {
   try {
-    const q = query(
-      collection(db, "appointments"),
-      where("patientId", "==", patientId),
-      orderBy("date", "desc")
-    );
+    console.log("Fetching appointments for patientId:", patientId);
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-        } as Appointment)
-    );
+    // First try with orderBy
+    try {
+      const q = query(
+        collection(db, "appointments"),
+        where("patientId", "==", patientId),
+        orderBy("date", "desc")
+      );
+
+      const snapshot = await getDocs(q);
+      console.log("Query successful, found", snapshot.docs.length, "appointments");
+
+      return snapshot.docs.map(
+        (doc) =>
+          ({
+            id: doc.id,
+            ...doc.data(),
+          } as Appointment)
+      );
+    } catch (indexError: any) {
+      // If it's an index error, try without orderBy
+      console.warn("OrderBy query failed, trying without orderBy:", indexError.message);
+
+      const q = query(
+        collection(db, "appointments"),
+        where("patientId", "==", patientId)
+      );
+
+      const snapshot = await getDocs(q);
+      console.log("Query without orderBy successful, found", snapshot.docs.length, "appointments");
+
+      // Sort in memory
+      const appointments = snapshot.docs.map(
+        (doc) =>
+          ({
+            id: doc.id,
+            ...doc.data(),
+          } as Appointment)
+      );
+
+      // Sort by date descending in memory
+      return appointments.sort((a, b) => {
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        return dateB - dateA;
+      });
+    }
   } catch (error) {
     console.error("Error fetching appointments:", error);
     throw error;
