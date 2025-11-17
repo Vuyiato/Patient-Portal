@@ -45,9 +45,9 @@ const SidebarLayout: React.FC<SidebarProps> = ({ children }) => {
       color: "from-brand-yellow to-brand-teal",
     },
     {
-      to: "/documents",
-      icon: <IconFileText className="w-6 h-6" />,
-      label: "Documents",
+      to: "/chatbot",
+      icon: <IconUser className="w-6 h-6" />,
+      label: "Chatbot",
       color: "from-brand-teal to-brand-yellow",
     },
     {

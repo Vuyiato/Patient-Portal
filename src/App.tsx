@@ -5,11 +5,11 @@ import { useAuth } from "./contexts/AuthContext";
 import BillingPage from "./pages/Billing";
 import LoginPage from "./pages/LoginPage";
 import SidebarLayout from "./components/Sidebar";
+import ChatbotPage from "./pages/ChatbotPage";
 import DashboardPage from "./pages/Dashboard";
 import ProfilePage from "./pages/Profile";
 import SettingsPage from "./pages/Settings";
 import AppointmentsPage from "./pages/Appointments";
-import DocumentsPage from "./pages/Documents";
 import ChatPage from "./pages/Chat";
 import NotificationsPage from "./pages/Notifications";
 import LoadingScreen from "./components/LoadingScreen";
@@ -24,7 +24,7 @@ const AppLayout = () => {
       <Routes>
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="appointments" element={<AppointmentsPage />} />
-        <Route path="documents" element={<DocumentsPage />} />
+        <Route path="chatbot" element={<ChatbotPage />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
